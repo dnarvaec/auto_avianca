@@ -1,0 +1,20 @@
+# Dependencias
+node_modules/
+
+# Artefactos de Playwright
+playwright-report/
+test-results/
+dist/
+
+# Variables de entorno (nunca subir al repo)
+.env
+
+# Excel con datos de prueba (excluir del repo; solo subir el .gitkeep)
+data/*.xlsx
+data/*.xls
+!data/.gitkeep
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.log

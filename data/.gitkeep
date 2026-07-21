@@ -1,0 +1,5 @@
+# Carpeta exclusiva para el archivo Excel maestro
+#
+# Coloca aquí el archivo: maestro.xlsx
+# Esta carpeta está excluida del repositorio (.gitignore)
+# para evitar subir datos sensibles de prueba.
