@@ -40,16 +40,28 @@ export const URLS = {
 } as const;
 
 /**
- * Datos de la tarjeta de crédito de prueba.
- * Compartida entre NBF, SSCI y ATC — fuente única de verdad en .env
+ * Datos de la tarjeta de crédito de prueba y datos del tarjetahabiente.
+ * Compartidos entre NBF, SSCI y ATC — fuente única de verdad en .env
+ *
+ * Los campos de billing tienen valores por defecto de QA para evitar
+ * errores si el .env no los tiene definidos.
  */
 export const PAYMENT = {
-  /** Número completo de 16 dígitos */
+  /** Número completo de 16 dígitos — requerido */
   cardNumber: requireEnv('CC_NUMBER'),
-  /** Fecha de vencimiento (MM/YY) */
+  /** Fecha de vencimiento (MM/YY) — requerido */
   expiryDate: requireEnv('CC_EXPIRY'),
-  /** Código de seguridad (CVV/CVC) */
+  /** Código de seguridad (CVV/CVC) — requerido */
   cvv: requireEnv('CC_CVV'),
+  /** Datos de billing del tarjetahabiente (opcionales, con defaults de QA) */
+  holderName:     process.env['CC_HOLDER_NAME']     ?? 'Juan',
+  holderLastname: process.env['CC_HOLDER_LASTNAME']  ?? 'Perez',
+  email:          process.env['CC_EMAIL']             ?? 'accept@accept.com',
+  areaCode:       process.env['CC_AREA_CODE']         ?? 'Colombia (+57)',
+  phone:          process.env['CC_PHONE']             ?? '3001111111',
+  address:        process.env['CC_ADDRESS']           ?? 'Calle 100',
+  city:           process.env['CC_CITY']              ?? 'Bogota',
+  country:        process.env['CC_COUNTRY']           ?? 'Colombia',
 } as const;
 
 /** Tipo inferido de PAYMENT — útil para tipar parámetros de Page Objects */

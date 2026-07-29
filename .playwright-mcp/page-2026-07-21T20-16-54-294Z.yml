@@ -1,0 +1,45 @@
+- generic [ref=f7e1]:
+  - generic [ref=f7e2]:
+    - banner [ref=f7e5]:
+      - generic [ref=f7e6]:
+        - generic [ref=f7e7]:
+          - link "To search page" [ref=f7e9] [cursor=pointer]:
+            - /url: https://www.avianca.com/co/en
+            - generic [ref=f7e10]: avianca
+          - generic [ref=f7e26]:
+            - generic [ref=f7e27]:
+              - generic [ref=f7e28]: BOG
+              - generic [ref=f7e31]: CLO
+            - generic [ref=f7e33]: 09 Aug
+            - generic [ref=f7e38]: 1 Adult
+            - button "Modify" [ref=f7e43] [cursor=pointer]
+        - generic [ref=f7e48]:
+          - generic [ref=f7e49]: "1"
+          - generic [ref=f7e54]: "2"
+          - generic [ref=f7e59]: "3"
+          - generic [ref=f7e64]: "4"
+    - main [ref=f7e68]:
+      - generic [ref=f7e70]:
+        - img "loader" [ref=f7e71]
+        - heading "Loading" [level=3] [ref=f7e72]:
+          - text: Loading
+          - generic [ref=f7e73]: .
+    - contentinfo [ref=f7e76]:
+      - generic [ref=f7e77]:
+        - generic [ref=f7e78]: Check all the applicable withdrawal and cancellation conditions for Colombia.
+        - generic [ref=f7e79]: © Avianca S.A 2026
+  - generic:
+    - region "Cookie consent" [active] [ref=f7e81]:
+      - alertdialog "Cookie Consent" [ref=f7e82]:
+        - generic [ref=f7e84]:
+          - generic [ref=f7e86]:
+            - heading "Cookie Consent" [level=2] [ref=f7e87]
+            - generic [ref=f7e88]:
+              - text: avianca uses its own and third-party cookies for analytical purposes and in order to ensure the functionality of the website, improve your experience and display advertising related to your preferences. You can "Accept" or select those you prefer by clicking "Set configuration". To learn more, read our
+              - link "More information about our cookies policy, opens in a new tab" [ref=f7e89] [cursor=pointer]:
+                - /url: https://www.avianca.com/en/legal-information/cookie-policies/
+                - text: Cookie policy. 
+          - generic [ref=f7e91]:
+            - button "Set configuration" [ref=f7e92] [cursor=pointer]
+            - button "Accept" [ref=f7e93] [cursor=pointer]
+    - text:  

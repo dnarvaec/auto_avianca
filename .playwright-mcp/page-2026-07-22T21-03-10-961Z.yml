@@ -1,0 +1,486 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - link "To search page" [ref=e9] [cursor=pointer]:
+            - /url: https://www.avianca.com/co/en
+            - generic [ref=e10]: avianca
+          - generic [ref=e26]:
+            - generic [ref=e27]:
+              - generic [ref=e28]: BOG
+              - generic [ref=e31]: CLO
+            - generic [ref=e33]: 09 Aug
+            - generic [ref=e38]: 1 Adult
+            - button "Modify" [ref=e43] [cursor=pointer]
+        - generic [ref=e48]:
+          - generic [ref=e49]: "1"
+          - generic [ref=e54]: "2"
+          - generic [ref=e59]: "3"
+          - generic [ref=e64]: "4"
+    - main [ref=e68]:
+      - generic [ref=e73]:
+        - generic [ref=e76]:
+          - generic [ref=e80] [cursor=pointer]:
+            - generic [ref=e81]: flight_takeoff
+            - generic [ref=e82]: Departure Bogota to Cali
+            - time [ref=e84]: Sunday, 09 Aug, 2026
+          - generic [ref=e87]:
+            - button [ref=e88]:
+              - img "previous" [ref=e89] [cursor=pointer]
+            - generic [ref=e90]:
+              - button "Previous 7 days" [ref=e91] [cursor=pointer]
+              - button "Flights, Thursday 06 August 2026 From COP 179.110" [ref=e93] [cursor=pointer]:
+                - generic [ref=e94]: Thu, 06 Aug
+                - generic [ref=e95]: From COP 179.110
+              - button "Flights, Friday 07 August 2026 From COP 179.110" [ref=e96] [cursor=pointer]:
+                - generic [ref=e97]: Fri, 07 Aug
+                - generic [ref=e98]: From COP 179.110
+              - button "Flights, Saturday 08 August 2026 From COP 179.110" [ref=e99] [cursor=pointer]:
+                - generic [ref=e100]: Sat, 08 Aug
+                - generic [ref=e101]: From COP 179.110
+              - button "Flights, Sunday 09 August 2026 From COP 179.110":
+                - generic: Sun, 09 Aug
+                - generic: From COP 179.110
+              - button "Flights, Monday 10 August 2026 From COP 179.110" [ref=e102] [cursor=pointer]:
+                - generic [ref=e103]: Mon, 10 Aug
+                - generic [ref=e104]: From COP 179.110
+              - button "Flights, Tuesday 11 August 2026 From COP 179.110" [ref=e105] [cursor=pointer]:
+                - generic [ref=e106]: Tue, 11 Aug
+                - generic [ref=e107]: From COP 179.110
+              - button "Flights, Wednesday 12 August 2026 From COP 179.110" [ref=e108] [cursor=pointer]:
+                - generic [ref=e109]: Wed, 12 Aug
+                - generic [ref=e110]: From COP 179.110
+              - button "Next 7 days" [ref=e111] [cursor=pointer]
+            - button [ref=e113]:
+              - img "next" [ref=e114] [cursor=pointer]
+        - generic [ref=e116]:
+          - generic [ref=e117]: "Filter by:"
+          - button "Best price" [ref=e118] [cursor=pointer]:
+            - figure [ref=e120]:
+              - img "Add filter" [ref=e121]
+          - button "Direct flights" [ref=e122] [cursor=pointer]:
+            - figure [ref=e124]:
+              - img "Remove filter" [ref=e125]
+          - button "Business Class" [ref=e126] [cursor=pointer]:
+            - figure [ref=e128]:
+              - img "Add filter" [ref=e129]
+        - generic [ref=e130]:
+          - main "Bogota 05:10 to Cali 06:11, Direct, duration 1h 1m" [ref=e136] [cursor=pointer]:
+            - generic [ref=e137]: Best price
+            - generic [ref=e141]:
+              - generic [ref=e142]:
+                - button "Direct" [ref=e143]
+                - generic [ref=e145]: 1h 1m
+              - generic [ref=e146]:
+                - generic [ref=e147]:
+                  - generic [ref=e148]: 05:10
+                  - generic [ref=e149]: BOG
+                - figure [ref=e152]:
+                  - img "Airplane" [ref=e153]
+                - generic [ref=e156]:
+                  - generic [ref=e157]: 06:11
+                  - generic [ref=e158]: CLO
+              - generic [ref=e159]: Operated by Avianca
+            - button "From COP 179.110" [ref=e162]:
+              - generic [ref=e163]:
+                - generic [ref=e164]: From
+                - generic [ref=e165]: COP 179.110
+          - main "Bogota 06:29 to Cali 07:35, Direct, duration 1h 6m" [ref=e172] [cursor=pointer]:
+            - generic [ref=e173]: Best price
+            - generic [ref=e177]:
+              - generic [ref=e178]:
+                - button "Direct" [ref=e179]
+                - generic [ref=e181]: 1h 6m
+              - generic [ref=e182]:
+                - generic [ref=e183]:
+                  - generic [ref=e184]: 06:29
+                  - generic [ref=e185]: BOG
+                - figure [ref=e188]:
+                  - img "Airplane" [ref=e189]
+                - generic [ref=e192]:
+                  - generic [ref=e193]: 07:35
+                  - generic [ref=e194]: CLO
+              - generic [ref=e195]: Operated by Avianca
+            - button "From COP 179.110" [ref=e198]:
+              - generic [ref=e199]:
+                - generic [ref=e200]: From
+                - generic [ref=e201]: COP 179.110
+          - main "Bogota 07:14 to Cali 08:18, Direct, duration 1h 4m" [ref=e208] [cursor=pointer]:
+            - generic [ref=e209]: Best price
+            - generic [ref=e213]:
+              - generic [ref=e214]:
+                - button "Direct" [ref=e215]
+                - generic [ref=e217]: 1h 4m
+              - generic [ref=e218]:
+                - generic [ref=e219]:
+                  - generic [ref=e220]: 07:14
+                  - generic [ref=e221]: BOG
+                - figure [ref=e224]:
+                  - img "Airplane" [ref=e225]
+                - generic [ref=e228]:
+                  - generic [ref=e229]: 08:18
+                  - generic [ref=e230]: CLO
+              - generic [ref=e231]: Operated by Avianca
+            - button "From COP 179.110" [ref=e234]:
+              - generic [ref=e235]:
+                - generic [ref=e236]: From
+                - generic [ref=e237]: COP 179.110
+          - main "Bogota 08:01 to Cali 09:11, Direct, duration 1h 10m" [ref=e244] [cursor=pointer]:
+            - generic [ref=e245]: Best price
+            - generic [ref=e249]:
+              - generic [ref=e250]:
+                - button "Direct" [ref=e251]
+                - generic [ref=e253]: 1h 10m
+              - generic [ref=e254]:
+                - generic [ref=e255]:
+                  - generic [ref=e256]: 08:01
+                  - generic [ref=e257]: BOG
+                - figure [ref=e260]:
+                  - img "Airplane" [ref=e261]
+                - generic [ref=e264]:
+                  - generic [ref=e265]: 09:11
+                  - generic [ref=e266]: CLO
+              - generic [ref=e267]: Operated by Avianca
+            - button "From COP 179.110" [ref=e270]:
+              - generic [ref=e271]:
+                - generic [ref=e272]: From
+                - generic [ref=e273]: COP 179.110
+          - main "Bogota 08:40 to Cali 09:46, Direct, duration 1h 6m" [ref=e280] [cursor=pointer]:
+            - generic [ref=e281]: Best price
+            - generic [ref=e285]:
+              - generic [ref=e286]:
+                - button "Direct" [ref=e287]
+                - generic [ref=e289]: 1h 6m
+              - generic [ref=e290]:
+                - generic [ref=e291]:
+                  - generic [ref=e292]: 08:40
+                  - generic [ref=e293]: BOG
+                - figure [ref=e296]:
+                  - img "Airplane" [ref=e297]
+                - generic [ref=e300]:
+                  - generic [ref=e301]: 09:46
+                  - generic [ref=e302]: CLO
+              - generic [ref=e303]: Operated by Avianca
+            - button "From COP 179.110" [ref=e306]:
+              - generic [ref=e307]:
+                - generic [ref=e308]: From
+                - generic [ref=e309]: COP 179.110
+          - main "Bogota 10:59 to Cali 12:02, Direct, duration 1h 3m" [ref=e316] [cursor=pointer]:
+            - generic [ref=e317]: Best price
+            - generic [ref=e321]:
+              - generic [ref=e322]:
+                - button "Direct" [ref=e323]
+                - generic [ref=e325]: 1h 3m
+              - generic [ref=e326]:
+                - generic [ref=e327]:
+                  - generic [ref=e328]: 10:59
+                  - generic [ref=e329]: BOG
+                - figure [ref=e332]:
+                  - img "Airplane" [ref=e333]
+                - generic [ref=e336]:
+                  - generic [ref=e337]: 12:02
+                  - generic [ref=e338]: CLO
+              - generic [ref=e339]: Operated by Avianca
+            - button "From COP 179.110" [ref=e342]:
+              - generic [ref=e343]:
+                - generic [ref=e344]: From
+                - generic [ref=e345]: COP 179.110
+          - main "Bogota 11:52 to Cali 12:51, Direct, duration 59m" [ref=e352] [cursor=pointer]:
+            - generic [ref=e353]: Best price
+            - generic [ref=e357]:
+              - generic [ref=e358]:
+                - button "Direct" [ref=e359]
+                - generic [ref=e361]: 59m
+              - generic [ref=e362]:
+                - generic [ref=e363]:
+                  - generic [ref=e364]: 11:52
+                  - generic [ref=e365]: BOG
+                - figure [ref=e368]:
+                  - img "Airplane" [ref=e369]
+                - generic [ref=e372]:
+                  - generic [ref=e373]: 12:51
+                  - generic [ref=e374]: CLO
+              - generic [ref=e375]: Operated by Avianca
+            - button "From COP 179.110" [ref=e378]:
+              - generic [ref=e379]:
+                - generic [ref=e380]: From
+                - generic [ref=e381]: COP 179.110
+          - main "Bogota 13:18 to Cali 14:20, Direct, duration 1h 2m" [ref=e388] [cursor=pointer]:
+            - generic [ref=e389]: Best price
+            - generic [ref=e393]:
+              - generic [ref=e394]:
+                - button "Direct" [ref=e395]
+                - generic [ref=e397]: 1h 2m
+              - generic [ref=e398]:
+                - generic [ref=e399]:
+                  - generic [ref=e400]: 13:18
+                  - generic [ref=e401]: BOG
+                - figure [ref=e404]:
+                  - img "Airplane" [ref=e405]
+                - generic [ref=e408]:
+                  - generic [ref=e409]: 14:20
+                  - generic [ref=e410]: CLO
+              - generic [ref=e411]: Operated by Avianca
+            - button "From COP 179.110" [ref=e414]:
+              - generic [ref=e415]:
+                - generic [ref=e416]: From
+                - generic [ref=e417]: COP 179.110
+          - main "Bogota 13:59 to Cali 15:00, Direct, duration 1h 1m" [ref=e424] [cursor=pointer]:
+            - generic [ref=e425]: Best price
+            - generic [ref=e429]:
+              - generic [ref=e430]:
+                - button "Direct" [ref=e431]
+                - generic [ref=e433]: 1h 1m
+              - generic [ref=e434]:
+                - generic [ref=e435]:
+                  - generic [ref=e436]: 13:59
+                  - generic [ref=e437]: BOG
+                - figure [ref=e440]:
+                  - img "Airplane" [ref=e441]
+                - generic [ref=e444]:
+                  - generic [ref=e445]: 15:00
+                  - generic [ref=e446]: CLO
+              - generic [ref=e447]: Operated by Avianca
+            - button "From COP 179.110" [ref=e450]:
+              - generic [ref=e451]:
+                - generic [ref=e452]: From
+                - generic [ref=e453]: COP 179.110
+          - main "Bogota 15:09 to Cali 16:16, Direct, duration 1h 7m" [ref=e460] [cursor=pointer]:
+            - generic [ref=e461]:
+              - generic [ref=e462]:
+                - button "Direct" [ref=e463]
+                - generic [ref=e465]: 1h 7m
+              - generic [ref=e466]:
+                - generic [ref=e467]:
+                  - generic [ref=e468]: 15:09
+                  - generic [ref=e469]: BOG
+                - figure [ref=e472]:
+                  - img "Airplane" [ref=e473]
+                - generic [ref=e476]:
+                  - generic [ref=e477]: 16:16
+                  - generic [ref=e478]: CLO
+              - generic [ref=e479]: Operated by Avianca
+            - button "From COP 195.060" [ref=e482]:
+              - generic [ref=e483]:
+                - generic [ref=e484]: From
+                - generic [ref=e485]: COP 195.060
+          - main "Bogota 17:00 to Cali 18:05, Direct, duration 1h 5m" [ref=e492] [cursor=pointer]:
+            - generic [ref=e493]:
+              - generic [ref=e494]:
+                - button "Direct" [ref=e495]
+                - generic [ref=e497]: 1h 5m
+              - generic [ref=e498]:
+                - generic [ref=e499]:
+                  - generic [ref=e500]: 17:00
+                  - generic [ref=e501]: BOG
+                - figure [ref=e504]:
+                  - img "Airplane" [ref=e505]
+                - generic [ref=e508]:
+                  - generic [ref=e509]: 18:05
+                  - generic [ref=e510]: CLO
+              - generic [ref=e511]: Operated by Avianca
+            - button "From COP 195.060" [ref=e514]:
+              - generic [ref=e515]:
+                - generic [ref=e516]: From
+                - generic [ref=e517]: COP 195.060
+          - main "Bogota 17:30 to Cali 18:36, Direct, duration 1h 6m" [ref=e524] [cursor=pointer]:
+            - generic [ref=e525]:
+              - generic [ref=e526]:
+                - button "Direct" [ref=e527]
+                - generic [ref=e529]: 1h 6m
+              - generic [ref=e530]:
+                - generic [ref=e531]:
+                  - generic [ref=e532]: 17:30
+                  - generic [ref=e533]: BOG
+                - figure [ref=e536]:
+                  - img "Airplane" [ref=e537]
+                - generic [ref=e540]:
+                  - generic [ref=e541]: 18:36
+                  - generic [ref=e542]: CLO
+              - generic [ref=e543]: Operated by Avianca
+            - button "From COP 195.060" [ref=e546]:
+              - generic [ref=e547]:
+                - generic [ref=e548]: From
+                - generic [ref=e549]: COP 195.060
+          - main "Bogota 18:16 to Cali 19:17, Direct, duration 1h 1m" [ref=e556] [cursor=pointer]:
+            - generic [ref=e557]: Best price
+            - generic [ref=e561]:
+              - generic [ref=e562]:
+                - button "Direct" [ref=e563]
+                - generic [ref=e565]: 1h 1m
+              - generic [ref=e566]:
+                - generic [ref=e567]:
+                  - generic [ref=e568]: 18:16
+                  - generic [ref=e569]: BOG
+                - figure [ref=e572]:
+                  - img "Airplane" [ref=e573]
+                - generic [ref=e576]:
+                  - generic [ref=e577]: 19:17
+                  - generic [ref=e578]: CLO
+              - generic [ref=e579]: Operated by Avianca
+            - button "From COP 179.110" [ref=e582]:
+              - generic [ref=e583]:
+                - generic [ref=e584]: From
+                - generic [ref=e585]: COP 179.110
+          - main "Bogota 18:45 to Cali 19:47, Direct, duration 1h 2m" [ref=e592] [cursor=pointer]:
+            - generic [ref=e593]: Best price
+            - generic [ref=e597]:
+              - generic [ref=e598]:
+                - button "Direct" [ref=e599]
+                - generic [ref=e601]: 1h 2m
+              - generic [ref=e602]:
+                - generic [ref=e603]:
+                  - generic [ref=e604]: 18:45
+                  - generic [ref=e605]: BOG
+                - figure [ref=e608]:
+                  - img "Airplane" [ref=e609]
+                - generic [ref=e612]:
+                  - generic [ref=e613]: 19:47
+                  - generic [ref=e614]: CLO
+              - generic [ref=e615]: Operated by Avianca
+            - button "From COP 179.110" [ref=e618]:
+              - generic [ref=e619]:
+                - generic [ref=e620]: From
+                - generic [ref=e621]: COP 179.110
+          - main "Bogota 19:15 to Cali 20:16, Direct, duration 1h 1m" [ref=e628] [cursor=pointer]:
+            - generic [ref=e629]: Best price
+            - generic [ref=e633]:
+              - generic [ref=e634]:
+                - button "Direct" [ref=e635]
+                - generic [ref=e637]: 1h 1m
+              - generic [ref=e638]:
+                - generic [ref=e639]:
+                  - generic [ref=e640]: 19:15
+                  - generic [ref=e641]: BOG
+                - figure [ref=e644]:
+                  - img "Airplane" [ref=e645]
+                - generic [ref=e648]:
+                  - generic [ref=e649]: 20:16
+                  - generic [ref=e650]: CLO
+              - generic [ref=e651]: Operated by Avianca
+            - button "From COP 179.110" [ref=e654]:
+              - generic [ref=e655]:
+                - generic [ref=e656]: From
+                - generic [ref=e657]: COP 179.110
+          - main "Bogota 20:17 to Cali 21:18, Direct, duration 1h 1m" [ref=e664] [cursor=pointer]:
+            - generic [ref=e665]: Best price
+            - generic [ref=e669]:
+              - generic [ref=e670]:
+                - button "Direct" [ref=e671]
+                - generic [ref=e673]: 1h 1m
+              - generic [ref=e674]:
+                - generic [ref=e675]:
+                  - generic [ref=e676]: 20:17
+                  - generic [ref=e677]: BOG
+                - figure [ref=e680]:
+                  - img "Airplane" [ref=e681]
+                - generic [ref=e684]:
+                  - generic [ref=e685]: 21:18
+                  - generic [ref=e686]: CLO
+              - generic [ref=e687]: Operated by Avianca
+            - button "From COP 179.110" [ref=e690]:
+              - generic [ref=e691]:
+                - generic [ref=e692]: From
+                - generic [ref=e693]: COP 179.110
+          - main "Bogota 20:50 to Cali 21:51, Direct, duration 1h 1m" [ref=e700] [cursor=pointer]:
+            - generic [ref=e701]: Best price
+            - generic [ref=e705]:
+              - generic [ref=e706]:
+                - button "Direct" [ref=e707]
+                - generic [ref=e709]: 1h 1m
+              - generic [ref=e710]:
+                - generic [ref=e711]:
+                  - generic [ref=e712]: 20:50
+                  - generic [ref=e713]: BOG
+                - figure [ref=e716]:
+                  - img "Airplane" [ref=e717]
+                - generic [ref=e720]:
+                  - generic [ref=e721]: 21:51
+                  - generic [ref=e722]: CLO
+              - generic [ref=e723]: Operated by Avianca
+            - button "From COP 179.110" [ref=e726]:
+              - generic [ref=e727]:
+                - generic [ref=e728]: From
+                - generic [ref=e729]: COP 179.110
+          - main "Bogota 21:44 to Cali 22:52, Direct, duration 1h 8m" [ref=e736] [cursor=pointer]:
+            - generic [ref=e737]: Best price
+            - generic [ref=e741]:
+              - generic [ref=e742]:
+                - button "Direct" [ref=e743]
+                - generic [ref=e745]: 1h 8m
+              - generic [ref=e746]:
+                - generic [ref=e747]:
+                  - generic [ref=e748]: 21:44
+                  - generic [ref=e749]: BOG
+                - figure [ref=e752]:
+                  - img "Airplane" [ref=e753]
+                - generic [ref=e756]:
+                  - generic [ref=e757]: 22:52
+                  - generic [ref=e758]: CLO
+              - generic [ref=e759]: Operated by Avianca
+            - button "From COP 179.110" [ref=e762]:
+              - generic [ref=e763]:
+                - generic [ref=e764]: From
+                - generic [ref=e765]: COP 179.110
+          - main "Bogota 22:10 to Cali 23:18, Direct, duration 1h 8m" [ref=e772] [cursor=pointer]:
+            - generic [ref=e773]: Best price
+            - generic [ref=e777]:
+              - generic [ref=e778]:
+                - button "Direct" [ref=e779]
+                - generic [ref=e781]: 1h 8m
+              - generic [ref=e782]:
+                - generic [ref=e783]:
+                  - generic [ref=e784]: 22:10
+                  - generic [ref=e785]: BOG
+                - figure [ref=e788]:
+                  - img "Airplane" [ref=e789]
+                - generic [ref=e792]:
+                  - generic [ref=e793]: 23:18
+                  - generic [ref=e794]: CLO
+              - generic [ref=e795]: Operated by Avianca
+            - button "From COP 179.110" [ref=e798]:
+              - generic [ref=e799]:
+                - generic [ref=e800]: From
+                - generic [ref=e801]: COP 179.110
+          - main "Bogota 22:36 to Cali 23:44, Direct, duration 1h 8m" [ref=e808] [cursor=pointer]:
+            - generic [ref=e809]: Best price
+            - generic [ref=e813]:
+              - generic [ref=e814]:
+                - button "Direct" [ref=e815]
+                - generic [ref=e817]: 1h 8m
+              - generic [ref=e818]:
+                - generic [ref=e819]:
+                  - generic [ref=e820]: 22:36
+                  - generic [ref=e821]: BOG
+                - figure [ref=e824]:
+                  - img "Airplane" [ref=e825]
+                - generic [ref=e828]:
+                  - generic [ref=e829]: 23:44
+                  - generic [ref=e830]: CLO
+              - generic [ref=e831]: Operated by Avianca
+            - button "From COP 179.110" [ref=e834]:
+              - generic [ref=e835]:
+                - generic [ref=e836]: From
+                - generic [ref=e837]: COP 179.110
+        - button "Show all flights" [ref=e839] [cursor=pointer]
+        - button "Fare conditions" [ref=e844] [cursor=pointer]
+    - contentinfo [ref=e850]:
+      - generic [ref=e851]:
+        - generic [ref=e852]: Check all the applicable withdrawal and cancellation conditions for Colombia.
+        - generic [ref=e853]: © Avianca S.A 2026
+  - generic:
+    - region "Cookie consent" [active] [ref=e855]:
+      - alertdialog "Cookie Consent" [ref=e856]:
+        - generic [ref=e858]:
+          - generic [ref=e860]:
+            - heading "Cookie Consent" [level=2] [ref=e861]
+            - generic [ref=e862]:
+              - text: avianca uses its own and third-party cookies for analytical purposes and in order to ensure the functionality of the website, improve your experience and display advertising related to your preferences. You can "Accept" or select those you prefer by clicking "Set configuration". To learn more, read our
+              - link "More information about our cookies policy, opens in a new tab" [ref=e863] [cursor=pointer]:
+                - /url: https://www.avianca.com/en/legal-information/cookie-policies/
+                - text: Cookie policy. 
+          - generic [ref=e865]:
+            - button "Set configuration" [ref=e866] [cursor=pointer]
+            - button "Accept" [ref=e867] [cursor=pointer]
+    - text:  

@@ -10,20 +10,21 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   /* Workers en CI: 1, local: 2 */
   workers: process.env.CI ? 1 : 2,
+  /* Timeout por test: el flujo NBF completo tarda >30s */
+  timeout: 180_000,
   /* Reporters */
   reporter: [
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['list'],
   ],
   use: {
-    /* Traza en el primer reintento */
-    trace: 'on',
-    /* Screenshot solo al fallar */
+    trace: 'off',
     screenshot: 'on',
-    /* Video solo al fallar */
     video: 'on',
     /* Viewport estándar desktop */
     viewport: { width: 1280, height: 720 },
+    // Otorga permisos para leer y escribir en el portapapeles
+    permissions: ['clipboard-read', 'clipboard-write'],
   },
   projects: [
     {

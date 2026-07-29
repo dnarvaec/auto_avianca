@@ -7,6 +7,10 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",
+    "test:nbf": "playwright test tests/nbf/nbf.spec.ts",
+    "test:nbf:ow": "playwright test tests/nbf/nbf.spec.ts --grep \"One Way\"",
+    "test:nbf:rt": "playwright test tests/nbf/nbf.spec.ts --grep \"Round Trip\"",
+    "test:ssci": "playwright test tests/ssci/ssci.spec.ts",
     "report": "playwright show-report",
     "install:browsers": "playwright install --with-deps"
   },
