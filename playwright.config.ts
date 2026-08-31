@@ -23,6 +23,9 @@ export default defineConfig({
     video: 'on',
     /* Viewport estándar desktop */
     viewport: { width: 1280, height: 720 },
+    /* Timeouts por acción para fallar rápido si un elemento no responde */
+    actionTimeout: 30_000,
+    navigationTimeout: 70_000,
     // Otorga permisos para leer y escribir en el portapapeles
     permissions: ['clipboard-read', 'clipboard-write'],
   },

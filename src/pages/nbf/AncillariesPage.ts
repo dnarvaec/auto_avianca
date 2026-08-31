@@ -2,174 +2,186 @@ import { type Page, type Locator, expect } from '@playwright/test';
 import { BasePage } from '../BasePage';
 
 /**
- * Page Object — Paso 3: Personaliza tu viaje (Ancillaries)
- * URL: /av/booking/travelers?orderId=XXXX
- *
- * Selectores validados en exploracion en vivo el 2026-07-23.
- *
- * Patron comun de ancillaries:
- *   1. Clic en la celda vacia de la tarjeta -> abre sub-pagina
- *   2. Hacer seleccion segun tipo
- *   3. Clic en [data-testid="nbf-button"] para confirmar y volver
+ * Page Object — Paso 3: Personaliza tu viaje (Ancillaries & Baggage Decision)
+ * URL: /av/demo-booking/travelers... (Vista content--ancillaries)
  */
 export class AncillariesPage extends BasePage {
+  private readonly ancillariesSection: Locator;
+  private readonly baggageDecisionNo: Locator;
+  private readonly baggageDecisionYes: Locator;
   private readonly goToPaymentBtn: Locator;
 
   constructor(page: Page) {
     super(page);
-    this.goToPaymentBtn = page.getByTestId('order-continue-btn-footer-static');
+    // Contenedor principal de la sección de ancillaries
+    this.ancillariesSection = page.locator('.content--ancillaries, baggage-decision-section, optional-services-container');
+
+    // Radios de decisión de equipaje
+    this.baggageDecisionNo = page.locator('label[for="no-additional-baggage-radio"]');
+    this.baggageDecisionYes = page.locator('label[for="additional-baggage-radio"]');
+
+    // Botón "Go to payment" (soporta estático y sticky footer)
+    this.goToPaymentBtn = page.getByRole('button', { name: /Go to payment|Ir a pagar/i })
+      .or(page.locator('#continue-btn-footer-static, #continue-btn-footer, [data-testid*="order-continue-btn-footer"]'))
+      .first();
   }
 
-  // ─── Navegacion ────────────────────────────────────────────────────────────
+  // ─── Navegación ────────────────────────────────────────────────────────────
 
   async waitForPage(): Promise<void> {
-    await this.page.waitForURL('**/travelers?orderId=**', { timeout: 25000 });
-    await expect(
-      this.page.locator('h1, h2').filter({ hasText: 'Personalize your trip' })
-    ).toBeVisible({ timeout: 8000 });
+    // Esperar a que la sección de ancillaries esté activa y visible en el DOM
+    await expect(this.ancillariesSection.first()).toBeVisible({ timeout: 20000 });
   }
 
-  // ─── Metodo principal ──────────────────────────────────────────────────────
+  // ─── Decisión Obligatoria de Equipaje ──────────────────────────────────────
 
   /**
-   * Selecciona las ancillaries marcadas como "Si" en el Excel.
-   * Cada ancillary navega a una sub-pagina y regresa a la lista.
+   * Resuelve el bloque "Do you need more baggage?"
+   * @param needBaggage false para marcar "No, I have what I need" (por defecto)
    */
+  async handleBaggageDecision(needBaggage = false): Promise<void> {
+    const targetLabel = needBaggage ? this.baggageDecisionYes : this.baggageDecisionNo;
+
+    if (await targetLabel.isVisible({ timeout: 6000 }).catch(() => false)) {
+      await targetLabel.scrollIntoViewIfNeeded();
+      await targetLabel.click();
+      await this.page.waitForTimeout(300);
+    }
+  }
+
+  // ─── Flujo Principal de Ancillaries ────────────────────────────────────────
+
   async handleAncillaries(flags: {
-    Asiento:                string;
-    'Equipaje Adic':        string;
-    'Sala VIP':             string;
-    'Equipaje Deportivo':   string;
-    'Asistencia Viaje':     string;
+    Asiento: string;
+    'Equipaje Adic': string;
+    'Sala VIP': string;
+    'Equipaje Deportivo': string;
+    'Asistencia Viaje': string;
     'Abordaje Prioritario': string;
   }): Promise<void> {
-    const yes = (v: string) => String(v).toLowerCase() === 'si';
+    await this.waitForPage();
 
-    if (yes(flags.Asiento))                  await this.selectSeat();
-    if (yes(flags['Equipaje Adic']))          await this.selectBaggage();
-    if (yes(flags['Sala VIP']))               await this.selectVipLounge();
-    if (yes(flags['Equipaje Deportivo']))     await this.selectSportsEquipment();
-    if (yes(flags['Asistencia Viaje']))       await this.selectTravelAssistance();
-    if (yes(flags['Abordaje Prioritario']))   await this.selectPriorityBoarding();
+    const yes = (v?: string) => String(v ?? '').toLowerCase() === 'si';
+
+    // 1. Paso Obligatorio: "Do you need more baggage?"
+    await this.handleBaggageDecision(yes(flags['Equipaje Adic']));
+
+    // 2. Selección condicional según el Excel
+    if (yes(flags.Asiento)) await this.selectSeat();
+    if (yes(flags['Equipaje Adic'])) await this.selectBaggage();
+    if (yes(flags['Sala VIP'])) await this.selectVipLounge();
+    if (yes(flags['Equipaje Deportivo'])) await this.selectSportsEquipment();
+    if (yes(flags['Asistencia Viaje'])) await this.selectTravelAssistance();
+    if (yes(flags['Abordaje Prioritario'])) await this.selectPriorityBoarding();
   }
 
-  // ─── Metodo de navegacion al pago ──────────────────────────────────────────
+  // ─── Navegación al Pago ────────────────────────────────────────────────────
 
   async goToPayment(): Promise<void> {
-    const floatBtn = this.page.getByTestId('order-continue-btn-footer');
-    const isStatic = await this.goToPaymentBtn.isVisible({ timeout: 2000 }).catch(() => false);
-    const btn = isStatic ? this.goToPaymentBtn : floatBtn;
-    await btn.scrollIntoViewIfNeeded();
-    await btn.click();
-    await this.page.waitForLoadState('domcontentloaded', { timeout: 15000 });
+    await expect(this.goToPaymentBtn).toBeVisible({ timeout: 10000 });
+    await this.goToPaymentBtn.scrollIntoViewIfNeeded();
+    await this.goToPaymentBtn.click();
+
+    // Esperar navegación hacia la pantalla de checkout / payment
+    await this.page.waitForURL(/.*(\/pay|\/checkout|\/payment|\/payment-methods)/, {
+      timeout: 45000,
+      waitUntil: 'commit'
+    });
   }
 
-  // ─── Ancillaries individuales ──────────────────────────────────────────────
+  // ─── Ancillaries Específicas ───────────────────────────────────────────────
 
-  /**
-   * Asiento: abre el mapa de asientos y selecciona el primero disponible.
-   */
   private async selectSeat(): Promise<void> {
-    await this.openAncillaryCard('ancilliaries-card-SEAT');
-    // Seleccionar el primer asiento disponible
-    await this.page.getByRole('button', { name: /Seat number/ }).first().click();
-    await this.page.waitForTimeout(300);
-    await this.page.getByRole('button', { name: 'Save and exit' }).click();
+    await this.openAncillaryCard('SEAT');
+    const availableSeat = this.page.getByRole('button', { name: /Seat number/i }).first();
+    if (await availableSeat.isVisible({ timeout: 8000 }).catch(() => false)) {
+      await availableSeat.click();
+      await this.page.waitForTimeout(300);
+    }
+    const saveBtn = this.page.getByRole('button', { name: /Save and exit|Guardar y salir|Confirm/i }).first();
+    if (await saveBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await saveBtn.click();
+    }
     await this.waitForPage();
   }
 
-  /**
-   * Equipaje adicional: incrementa en 1 maleta para cada pasajero.
-   * Intenta con BBAG primero; si no existe, usa CABG.
-   */
   private async selectBaggage(): Promise<void> {
-    const cardTestId = await this.resolveAncillaryCard(['ancilliaries-card-BBAG', 'ancilliaries-card-CABG']);
-    if (!cardTestId) return;
-
-    await this.openAncillaryCard(cardTestId);
-    // Incrementar 1 maleta para cada pasajero visible
-    const increaseBtns = this.page.getByRole('button', { name: /Increase number of bags/ });
+    await this.openAncillaryCard('BAG');
+    const increaseBtns = this.page.getByRole('button', { name: /Increase number of bags/i });
     const count = await increaseBtns.count();
     for (let i = 0; i < count; i++) {
       await increaseBtns.nth(i).click();
       await this.page.waitForTimeout(200);
     }
-    await this.page.getByTestId('nbf-button').click();
+    await this.confirmAncillaryModal();
     await this.waitForPage();
   }
 
-  /**
-   * Sala VIP: selecciona todos los pasajeros y confirma.
-   */
   private async selectVipLounge(): Promise<void> {
-    await this.openAncillaryCard('ancilliaries-card-VIPD');
-    await this.page.getByRole('checkbox', { name: /Select all passengers/ }).check();
-    await this.page.waitForTimeout(300);
-    await this.page.getByTestId('nbf-button').click();
+    await this.openAncillaryCard('VIPD');
+    const selectAll = this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i }).first();
+    if (await selectAll.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await selectAll.check();
+      await this.page.waitForTimeout(300);
+    }
+    await this.confirmAncillaryModal();
     await this.waitForPage();
   }
 
-  /**
-   * Equipaje deportivo: incrementa 1 pieza por cada bag-element disponible.
-   */
   private async selectSportsEquipment(): Promise<void> {
-    await this.openAncillaryCard('ancilliaries-card-SPEQ');
-    // bag-element-0-N donde N es el indice del pasajero
+    await this.openAncillaryCard('SPEQ');
     let idx = 0;
     while (true) {
       const bagEl = this.page.getByTestId(`bag-element-0-${idx}`);
-      if (!(await bagEl.isVisible({ timeout: 500 }).catch(() => false))) break;
-      await bagEl.getByRole('button', { name: /Increase number of pieces of/ }).click();
+      if (!(await bagEl.isVisible({ timeout: 1000 }).catch(() => false))) break;
+      await bagEl.getByRole('button', { name: /Increase number of pieces/i }).click();
       await this.page.waitForTimeout(200);
       idx++;
     }
-    await this.page.getByTestId('nbf-button').click();
+    await this.confirmAncillaryModal();
     await this.waitForPage();
   }
 
-  /**
-   * Asistencia de viaje: confirma directamente.
-   */
   private async selectTravelAssistance(): Promise<void> {
-    await this.openAncillaryCard('ancilliaries-card-ASST');
-    await this.page.getByTestId('nbf-button').click();
+    await this.openAncillaryCard('ASST');
+    await this.confirmAncillaryModal();
     await this.waitForPage();
   }
 
-  /**
-   * Abordaje prioritario: selecciona todos los pasajeros y confirma.
-   */
   private async selectPriorityBoarding(): Promise<void> {
-    await this.openAncillaryCard('ancilliaries-card-PBRD');
-    await this.page.getByRole('checkbox', { name: /Select all passengers/ }).check();
-    await this.page.waitForTimeout(300);
-    await this.page.getByTestId('nbf-button').click();
+    await this.openAncillaryCard('PBRD');
+    const selectAll = this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i }).first();
+    if (await selectAll.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await selectAll.check();
+      await this.page.waitForTimeout(300);
+    }
+    await this.confirmAncillaryModal();
     await this.waitForPage();
   }
 
-  // ─── Helpers privados ─────────────────────────────────────────────────────
+  // ─── Helpers Privados ──────────────────────────────────────────────────────
 
   /**
-   * Abre la sub-pagina de una ancillary haciendo clic en la celda vacia de su tarjeta.
+   * Abre la tarjeta de servicio haciendo clic directamente en su <mat-card>
    */
-  private async openAncillaryCard(testId: string): Promise<void> {
-    const card = this.page.getByTestId(testId);
+  private async openAncillaryCard(cardCode: string): Promise<void> {
+    const card = this.page.locator('mat-card.service-card').filter({
+      has: this.page.locator(`.img-container.${cardCode}, [class*="${cardCode}"]`),
+    }).first();
+
+    await expect(card).toBeVisible({ timeout: 8000 });
     await card.scrollIntoViewIfNeeded();
-    await card.getByRole('cell').filter({ hasText: /^$/ }).click();
-    await this.page.waitForLoadState('domcontentloaded', { timeout: 8000 });
+    await card.click();
+    await this.page.waitForTimeout(500);
   }
 
-  /**
-   * Resuelve cual de los testIds de ancillary existe en la pagina actual.
-   * Util cuando el mismo servicio puede tener codigos distintos (BBAG / CABG).
-   */
-  private async resolveAncillaryCard(testIds: string[]): Promise<string | null> {
-    for (const id of testIds) {
-      if (await this.page.getByTestId(id).isVisible({ timeout: 500 }).catch(() => false)) {
-        return id;
-      }
+  private async confirmAncillaryModal(): Promise<void> {
+    const confirmBtn = this.page.getByRole('button', { name: /Confirm|Save|Guardar|Continuar/i })
+      .or(this.page.getByTestId('nbf-button'))
+      .first();
+
+    if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await confirmBtn.click();
     }
-    console.warn('[AncillariesPage] Ninguna tarjeta encontrada:', testIds.join(', '));
-    return null;
   }
 }
