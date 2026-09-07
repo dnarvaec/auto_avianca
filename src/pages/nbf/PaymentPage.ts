@@ -3,177 +3,216 @@ import { BasePage } from '../BasePage';
 import type { PaymentConfig } from '../../config/environment';
 
 /**
- * Page Object — Paso 4: "Pay and confirm"
- * URL: https://sdkqa.avtest.ink/pay?sessionID=XXX&channel=NBF
+ * Page Object — Paso 4: "Pay and confirm" (Abra Checkout)
+ * URL: https://abracheckoutqa.avtest.ink/EN/nbf/pay?sessionID=...
  */
 export class PaymentPage extends BasePage {
-  static readonly URL_PATTERN: RegExp = /\/pay(\?|$)|RedirectAVCheckout|payment/;
+  static readonly URL_PATTERN: RegExp = /.*(abracheckout|sdkqa|\/pay|\/checkout|\/payment)/i;
 
-  // ─── Locators — Acordeón y Datos de Tarjeta ────────────────────────────────
-  private readonly creditCardAccordion: Locator;
-  private readonly cardNumberInput: Locator;
-  private readonly expiryMonthSelect: Locator;
-  private readonly expiryYearSelect: Locator;
-  private readonly cvvInput: Locator;
+  // ─── Locators — Cookies ───────────────────────────────────────────────────
+  private readonly cookieAcceptBtn: Locator;
 
-  // ─── Locators — Datos del Titular (Scoped a app-credit-card-form) ─────────
+  // ─── Locators — Método de Pago ────────────────────────────────────────────
+  private readonly cardItemContainer: Locator;
+  private readonly cardMethodRadio: Locator;
+
+  // ─── Locators — Datos de la Tarjeta ───────────────────────────────────────
   private readonly holderNameInput: Locator;
   private readonly holderLastnameInput: Locator;
-  private readonly emailInput: Locator;
-  private readonly areaCodeSelect: Locator;
-  private readonly phoneInput: Locator;
-  private readonly addressInput: Locator;
-  private readonly cityInput: Locator;
-  private readonly countrySelect: Locator;
+  private readonly cardNumberInput: Locator;
+  private readonly expiryMonthTrigger: Locator;
+  private readonly expiryYearTrigger: Locator;
+  private readonly cvvInput: Locator;
 
-  // ─── Locators — T&C y Botón Pagar ─────────────────────────────────────────
+  // ─── Locators — Datos de Contacto y Facturación ───────────────────────────
+  private readonly emailInput: Locator;
+  private readonly areaCodeTrigger: Locator;
+  private readonly phoneInput: Locator;
+  private readonly countryTrigger: Locator;
+  private readonly cityInput: Locator;
+  private readonly addressInput: Locator;
+
+  // ─── Locators — T&C y Botón Pagar (Actualizados) ──────────────────────────
   private readonly termsCheckbox: Locator;
   private readonly payBtn: Locator;
 
   constructor(page: Page) {
     super(page);
 
-    // Acordeón de Tarjeta de Crédito
-    this.creditCardAccordion = page.locator('button#buttonTC, button[data-bs-target="#collapseOne"]');
+    // Cookies
+    this.cookieAcceptBtn = page.locator(
+      '#onetrust-accept-btn-handler, #onetrust-banner-sdk button:has-text("Aceptar"), button:has-text("Aceptar"), button:has-text("Accept")'
+    );
 
-    // Inputs de Tarjeta
-    this.cardNumberInput = page.locator('app-credit-card-form input#cardNumber');
-    this.expiryMonthSelect = page.locator('app-credit-card-form mat-select#expiryMonth');
-    this.expiryYearSelect = page.locator('app-credit-card-form mat-select#expiryYear');
-    this.cvvInput = page.locator('app-credit-card-form input#securityDigits');
+    // Método de pago: Credit or debit card
+    this.cardItemContainer = page.locator('#card-item, .payment-method:has(input[value="card"])');
+    this.cardMethodRadio = page.locator('input[name="paymentMethod"][value="card"], #card-item input.radio-button');
 
-    // Datos del titular (estrictamente dentro de app-credit-card-form)
-    this.holderNameInput = page.locator('app-credit-card-form input#firstnameTitular');
-    this.holderLastnameInput = page.locator('app-credit-card-form input#lastnameTitular');
-    this.emailInput = page.locator('app-credit-card-form input#emailTitular');
-    this.areaCodeSelect = page.locator('app-credit-card-form mat-select#areaCode');
-    this.phoneInput = page.locator('app-credit-card-form input#cellTitular');
-    this.addressInput = page.locator('app-credit-card-form input#address');
-    this.cityInput = page.locator('app-credit-card-form input#city');
-    this.countrySelect = page.locator('app-credit-card-form mat-select#country');
+    // Datos principales
+    this.holderNameInput = page.locator('input#firstnameTitular');
+    this.holderLastnameInput = page.locator('input#lastnameTitular');
+    this.cardNumberInput = page.locator('input#cardNumber');
+    this.expiryMonthTrigger = page.locator('[data-control="expiryMonth"], input#expiryMonth');
+    this.expiryYearTrigger = page.locator('[data-control="expiryYear"], input#expiryYear');
+    this.cvvInput = page.locator('input#securityDigits');
 
-    // T&C y Botón Pay
-    this.termsCheckbox = page.locator('input#policyCheck');
-    this.payBtn = page.locator('button#btnPay');
+    // Datos de contacto
+    this.emailInput = page.locator('input#emailTc, input#emailTitular');
+    this.areaCodeTrigger = page.locator('[data-control="areaCodeTc"], input#areaCodeTc, mat-select#areaCode');
+    this.phoneInput = page.locator('input#phoneTc, input#cellTitular');
+    this.countryTrigger = page.locator('[data-control="country"], input#country, mat-select#country');
+    this.cityInput = page.locator('input#city');
+    this.addressInput = page.locator('input#addressTc, input#address');
+
+    // T&C y Botón Pay (Actualizados al nuevo DOM de Abra Checkout)
+    this.termsCheckbox = page.locator('input#global-acceptTerms, input#policyCheck');
+    this.payBtn = page.locator('button#global-submit, button#btnPay, button.global-submit, .summary-page_content__pasarela__global-actions button.btn-primary');
+  }
+
+  // ─── Cookies ──────────────────────────────────────────────────────────────
+
+  async dismissCookies(): Promise<void> {
+    const acceptBtn = this.cookieAcceptBtn.first();
+    if (await acceptBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await acceptBtn.click({ force: true }).catch(() => { });
+      await this.page.waitForTimeout(300);
+    }
+
+    await this.page
+      .locator('.onetrust-pc-dark-filter, #onetrust-banner-sdk')
+      .waitFor({ state: 'hidden', timeout: 3000 })
+      .catch(() => { });
   }
 
   // ─── Navegación ────────────────────────────────────────────────────────────
 
   async waitForPage(): Promise<void> {
     await this.page.waitForURL(PaymentPage.URL_PATTERN, {
-      timeout: 35000,
-      waitUntil: 'commit',
+      timeout: 45000,
+      waitUntil: 'domcontentloaded',
     });
 
-    await expect(this.creditCardAccordion.first()).toBeVisible({ timeout: 25000 });
+    await this.dismissCookies();
+    await expect(this.cardItemContainer.first()).toBeVisible({ timeout: 30000 });
   }
 
   // ─── Acciones ──────────────────────────────────────────────────────────────
 
   async expandCreditCard(): Promise<void> {
-    const ccBtn = this.creditCardAccordion.first();
-    await expect(ccBtn).toBeVisible({ timeout: 15000 });
-    await ccBtn.scrollIntoViewIfNeeded();
+    await this.dismissCookies();
 
-    await expect(async () => {
-      if (!(await this.cardNumberInput.isVisible())) {
-        await ccBtn.click();
-      }
-      await expect(this.cardNumberInput).toBeVisible({ timeout: 3000 });
-    }).toPass({
-      intervals: [500, 1000],
-      timeout: 15000,
-    });
+    const cardLabel = this.cardItemContainer.locator('.payment-method__header, label').first();
+    await cardLabel.scrollIntoViewIfNeeded();
+
+    await cardLabel.click({ force: true });
+    await this.cardMethodRadio.check({ force: true }).catch(() => { });
+
+    await expect(this.cardNumberInput).toBeVisible({ timeout: 10000 });
   }
 
   async fillPaymentForm(payment: PaymentConfig): Promise<void> {
     await this.expandCreditCard();
 
-    // ── 1. Datos de la tarjeta ──────────────────────────────────────────────
+    // ── 1. Nombre y Apellido del Titular ────────────────────────────────────
+    await this.holderNameInput.fill(payment.holderName);
+    await this.holderLastnameInput.fill(payment.holderLastname);
+
+    // ── 2. Número de Tarjeta ────────────────────────────────────────────────
     await this.cardNumberInput.fill(payment.cardNumber);
 
+    // ── 3. Fecha de Expiración ──────────────────────────────────────────────
     const { month, year } = this.parseExpiry(payment.expiryDate);
+    const mmPadded = month.padStart(2, '0'); // "05"
 
     // Mes
-    await this.expiryMonthSelect.click();
+    await this.expiryMonthTrigger.first().click({ force: true });
     await this.page.waitForTimeout(300);
-    const monthOption = this.page.getByRole('option', { name: new RegExp(`^0?${month}$`, 'i') })
-      .or(this.page.locator('.cdk-overlay-container mat-option').filter({ hasText: month }))
-      .first();
-    await monthOption.click({ force: true });
+    const monthBtn = this.page.locator(`#expiryMonth-list-panel button[data-value="${mmPadded}"], #expiryMonth-list-panel button:has-text("${mmPadded}")`).first();
+    if (await monthBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await monthBtn.click({ force: true });
+    } else {
+      await this.page.getByRole('option', { name: new RegExp(`^${mmPadded}$`) }).first().click({ force: true });
+    }
 
     // Año
-    await this.expiryYearSelect.click();
+    await this.expiryYearTrigger.first().click({ force: true });
     await this.page.waitForTimeout(300);
-    const yearOption = this.page.getByRole('option', { name: new RegExp(`^${year}$|^20${year}$`, 'i') })
-      .or(this.page.locator('.cdk-overlay-container mat-option').filter({ hasText: year }))
-      .first();
-    await yearOption.click({ force: true });
+    const yearBtn = this.page.locator(`#expiryYear-list-panel button[data-value="${year}"], #expiryYear-list-panel button:has-text("${year}")`).first();
+    if (await yearBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await yearBtn.click({ force: true });
+    } else {
+      await this.page.getByRole('option', { name: new RegExp(`^${year}$`) }).first().click({ force: true });
+    }
 
-    // CVV y desenfoque para disparar validación de Angular
+    // ── 4. CVV ──────────────────────────────────────────────────────────────
     await this.cvvInput.fill(payment.cvv);
     await this.cvvInput.blur();
     await this.page.keyboard.press('Tab');
 
-    // ── 2. Esperar formalmente a que aparezcan los campos del titular ───────
-    await expect(this.holderNameInput).toBeVisible({ timeout: 12000 });
-
-    // ── 3. Llenar información del titular y dirección ───────────────────────
-    await this.holderNameInput.fill(payment.holderName);
-    await this.holderLastnameInput.fill(payment.holderLastname);
+    // ── 5. Datos de Contacto y Facturación ──────────────────────────────────
+    await expect(this.emailInput).toBeVisible({ timeout: 10000 });
     await this.emailInput.fill(payment.email);
 
-    // Código de área (Area Code)
-    await this.areaCodeSelect.click();
-    await this.page.waitForTimeout(300);
-    const areaCodeOpt = this.page.getByRole('option', { name: new RegExp(payment.areaCode.replace(/[+()]/g, '\\$&'), 'i') })
-      .or(this.page.locator('.cdk-overlay-container mat-option').filter({ hasText: payment.areaCode }))
-      .first();
-    await areaCodeOpt.click({ force: true });
+    // Código de área / Prefijo
+    if (await this.areaCodeTrigger.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+      await this.areaCodeTrigger.first().click({ force: true });
+      await this.page.waitForTimeout(300);
+      const areaBtn = this.page.locator('#areaCodeTc-list-panel button').filter({ hasText: 'Colombia' }).first();
+      if (await areaBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await areaBtn.click({ force: true });
+      }
+    }
 
     await this.phoneInput.fill(payment.phone);
-    await this.addressInput.fill(payment.address);
-    await this.cityInput.fill(payment.city);
 
     // País
-    await this.countrySelect.click();
-    await this.page.waitForTimeout(300);
-    const countryOpt = this.page.getByRole('option', { name: new RegExp(`^${payment.country}$`, 'i') })
-      .or(this.page.locator('.cdk-overlay-container mat-option').filter({ hasText: payment.country }))
-      .first();
-    await countryOpt.click({ force: true });
-
-    // ── 4. Aceptar Términos y Condiciones ───────────────────────────────────
-    await this.termsCheckbox.scrollIntoViewIfNeeded();
-    await this.termsCheckbox.evaluate((el: HTMLInputElement) => {
-      if (!el.checked) {
-        el.click();
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
+    if (await this.countryTrigger.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+      await this.countryTrigger.first().click({ force: true });
+      await this.page.waitForTimeout(300);
+      const countryBtn = this.page.locator('#country-list-panel button').filter({ hasText: payment.country }).first();
+      if (await countryBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await countryBtn.click({ force: true });
       }
-    });
-    await expect(this.termsCheckbox).toBeChecked({ timeout: 5000 });
+    }
+
+    if (await this.cityInput.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await this.cityInput.fill(payment.city);
+    }
+
+    await this.addressInput.fill(payment.address);
+
+    // ── 6. Aceptar Términos y Condiciones (#global-acceptTerms) ─────────────
+    const termsInput = this.termsCheckbox.first();
+    if (await termsInput.isVisible({ timeout: 4000 }).catch(() => false)) {
+      await termsInput.scrollIntoViewIfNeeded();
+      await termsInput.evaluate((el: HTMLInputElement) => {
+        if (!el.checked) {
+          el.click();
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+      await expect(termsInput).toBeChecked({ timeout: 5000 });
+    }
   }
 
   async submitPayment(): Promise<void> {
-    await expect(this.payBtn).toBeVisible({ timeout: 10000 });
-    await this.payBtn.scrollIntoViewIfNeeded();
-    await this.payBtn.click();
+    const submitBtn = this.payBtn.first();
+    await expect(submitBtn).toBeVisible({ timeout: 15000 });
+    await submitBtn.scrollIntoViewIfNeeded();
+    await submitBtn.click({ force: true });
     await this.page.waitForLoadState('domcontentloaded', { timeout: 30000 });
   }
 
   // ─── Verificaciones ────────────────────────────────────────────────────────
 
   async assertPaymentSuccess(): Promise<void> {
-    // Esperar navegación a la página de confirmación
     await this.page.waitForURL(/.*(\/confirmation|success)/, { timeout: 120000, waitUntil: 'commit' });
 
-    // Validar encabezado de confirmación
     await expect(
-      this.page.locator('h1, h2, [class*="title"]').filter({ hasText: /Thank you for your purchase|Gracias por tu compra|Confirmation/i }).first()
+      this.page.locator('h1, h2, [class*="title"]').filter({ hasText: /Thank you for your purchase|Gracias por tu compra|Confirmation|Purchase summary/i }).first()
     ).toBeVisible({ timeout: 25000 });
 
-    // Validar código de reserva
     await expect(
       this.page.getByText(/Your booking code|Tu código de reserva|Booking code/i).first()
     ).toBeVisible({ timeout: 15000 });

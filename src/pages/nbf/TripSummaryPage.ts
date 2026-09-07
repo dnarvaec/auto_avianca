@@ -13,13 +13,13 @@ export class TripSummaryPage extends BasePage {
     super(page);
     // Botón principal de la página Trip Summary
     this.continueBtn = page.locator(
-      'button.btn-primary-black, button:has-text("Continue"), [data-testid="trip-summary-continue-button"]'
+      'button.btn-primary-black, button:has-text("Continue"), button:has-text("Continuar"), [data-testid="trip-summary-continue-button"]'
     ).first();
 
-    // Apuntar estrictamente a la etiqueta <button> nativa interna para que Angular procese el evento
+    // Botón de "Continue without signing in" (Soporta inglés, español y selector testid)
     this.lateLoginContinueBtn = page
-      .getByRole('button', { name: /Continue without signing in/i })
-      .or(page.locator('button[data-testid="late-login-continue"]'))
+      .getByRole('button', { name: /Continue without signing in|Continuar sin iniciar sesión|Continue as guest|Continuar como invitado/i })
+      .or(page.locator('button[data-testid="late-login-continue"], [data-testid="late-login-continue"] button'))
       .first();
   }
 
@@ -35,14 +35,18 @@ export class TripSummaryPage extends BasePage {
     await this.continueBtn.scrollIntoViewIfNeeded();
     await this.continueBtn.click();
 
-    // 2. Esperar que el modal de Late Login aparezca y termine su animación
-    await expect(this.lateLoginContinueBtn).toBeVisible({ timeout: 10000 });
-    await this.lateLoginContinueBtn.scrollIntoViewIfNeeded();
+    // 2. El modal de Late Login es condicional:
+    // Esperamos hasta 3.5s; si aparece, hacemos clic. Si no, continuamos hacia /travelers
+    const modalAppeared = await this.lateLoginContinueBtn
+      .waitFor({ state: 'visible', timeout: 3500 })
+      .then(() => true)
+      .catch(() => false);
 
-    // Clic natural (sin force: true para respetar la estabilidad de la animación)
-    await this.lateLoginContinueBtn.click();
+    if (modalAppeared) {
+      await this.lateLoginContinueBtn.click();
+    }
 
-    // 3. Esperar que navegue exitosamente al paso de pasajeros (Travelers)
+    // 3. Esperar que navegue exitosamente a la página de pasajeros (/travelers)
     await this.page.waitForURL(/.*\/travelers/, { timeout: 25000 });
   }
 }

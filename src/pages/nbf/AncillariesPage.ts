@@ -83,7 +83,7 @@ export class AncillariesPage extends BasePage {
     await this.goToPaymentBtn.click();
 
     // Esperar navegación hacia la pantalla de checkout / payment
-    await this.page.waitForURL(/.*(\/pay|\/checkout|\/payment|\/payment-methods)/, {
+    await this.page.waitForURL(/.*(abracheckout|sdkqa|\/pay|\/checkout|\/payment)/i, {
       timeout: 45000,
       waitUntil: 'commit'
     });
