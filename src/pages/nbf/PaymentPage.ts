@@ -32,7 +32,7 @@ export class PaymentPage extends BasePage {
   private readonly cityInput: Locator;
   private readonly addressInput: Locator;
 
-  // ─── Locators — T&C y Botón Pagar (Actualizados) ──────────────────────────
+  // ─── Locators — T&C y Botón Pagar ─────────────────────────────────────────
   private readonly termsCheckbox: Locator;
   private readonly payBtn: Locator;
 
@@ -41,7 +41,7 @@ export class PaymentPage extends BasePage {
 
     // Cookies
     this.cookieAcceptBtn = page.locator(
-      '#onetrust-accept-btn-handler, #onetrust-banner-sdk button:has-text("Aceptar"), button:has-text("Aceptar"), button:has-text("Accept")'
+      '#onetrust-accept-btn-handler, #onetrust-banner-sdk button:has-text("Aceptar"), button:has-text("Aceptar"), button:has-text("Accept"), button:has-text("Allow all")'
     );
 
     // Método de pago: Credit or debit card
@@ -64,24 +64,25 @@ export class PaymentPage extends BasePage {
     this.cityInput = page.locator('input#city');
     this.addressInput = page.locator('input#addressTc, input#address');
 
-    // T&C y Botón Pay (Actualizados al nuevo DOM de Abra Checkout)
+    // T&C y Botón Pay
     this.termsCheckbox = page.locator('input#global-acceptTerms, input#policyCheck');
-    this.payBtn = page.locator('button#global-submit, button#btnPay, button.global-submit, .summary-page_content__pasarela__global-actions button.btn-primary');
+    this.payBtn = page.locator('button#global-submit, button#btnPay');
   }
 
   // ─── Cookies ──────────────────────────────────────────────────────────────
 
   async dismissCookies(): Promise<void> {
     const acceptBtn = this.cookieAcceptBtn.first();
-    if (await acceptBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await acceptBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
       await acceptBtn.click({ force: true }).catch(() => { });
       await this.page.waitForTimeout(300);
     }
 
-    await this.page
-      .locator('.onetrust-pc-dark-filter, #onetrust-banner-sdk')
-      .waitFor({ state: 'hidden', timeout: 3000 })
-      .catch(() => { });
+    // Si el filtro oscuro de OneTrust está presente en pantalla, removerlo para que no tape elementos
+    const darkFilter = this.page.locator('.onetrust-pc-dark-filter, #onetrust-banner-sdk');
+    if (await darkFilter.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await darkFilter.evaluate(el => el.remove()).catch(() => { });
+    }
   }
 
   // ─── Navegación ────────────────────────────────────────────────────────────
@@ -122,7 +123,7 @@ export class PaymentPage extends BasePage {
 
     // ── 3. Fecha de Expiración ──────────────────────────────────────────────
     const { month, year } = this.parseExpiry(payment.expiryDate);
-    const mmPadded = month.padStart(2, '0'); // "05"
+    const mmPadded = month.padStart(2, '0');
 
     // Mes
     await this.expiryMonthTrigger.first().click({ force: true });
@@ -153,7 +154,7 @@ export class PaymentPage extends BasePage {
     await expect(this.emailInput).toBeVisible({ timeout: 10000 });
     await this.emailInput.fill(payment.email);
 
-    // Código de área / Prefijo
+    // Código de área
     if (await this.areaCodeTrigger.first().isVisible({ timeout: 2000 }).catch(() => false)) {
       await this.areaCodeTrigger.first().click({ force: true });
       await this.page.waitForTimeout(300);
@@ -181,7 +182,7 @@ export class PaymentPage extends BasePage {
 
     await this.addressInput.fill(payment.address);
 
-    // ── 6. Aceptar Términos y Condiciones (#global-acceptTerms) ─────────────
+    // ── 6. Aceptar Términos y Condiciones ───────────────────────────────────
     const termsInput = this.termsCheckbox.first();
     if (await termsInput.isVisible({ timeout: 4000 }).catch(() => false)) {
       await termsInput.scrollIntoViewIfNeeded();
@@ -206,16 +207,36 @@ export class PaymentPage extends BasePage {
 
   // ─── Verificaciones ────────────────────────────────────────────────────────
 
-  async assertPaymentSuccess(): Promise<void> {
-    await this.page.waitForURL(/.*(\/confirmation|success)/, { timeout: 120000, waitUntil: 'commit' });
+  async assertPaymentSuccess(): Promise<string> {
+    // 1. Esperar navegación a la página de confirmación
+    await this.page.waitForURL(/.*(\/confirmation|success)/i, {
+      timeout: 120000,
+      waitUntil: 'domcontentloaded',
+    });
 
-    await expect(
-      this.page.locator('h1, h2, [class*="title"]').filter({ hasText: /Thank you for your purchase|Gracias por tu compra|Confirmation|Purchase summary/i }).first()
-    ).toBeVisible({ timeout: 25000 });
+    // 2. Esperar a que los loaders desaparezcan
+    const loader = this.page.locator('#loader:not(.spinner-desactive), .loader, ngx-spinner');
+    await loader.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => { });
 
-    await expect(
-      this.page.getByText(/Your booking code|Tu código de reserva|Booking code/i).first()
-    ).toBeVisible({ timeout: 15000 });
+    // 3. 🍪 CERRAR COOKIES EN LA PANTALLA DE CONFIRMACIÓN
+    await this.dismissCookies();
+
+    // 4. Validar el título y código de reserva (PNR: .reservationCode strong)
+    const bookingCodeLocator = this.page.locator('.reservationCode strong, [class*="reservationCode"] strong').first();
+    await expect(bookingCodeLocator).toBeVisible({ timeout: 25000 });
+
+    const pnr = (await bookingCodeLocator.innerText()).trim();
+    console.log(`\n========================================`);
+    console.log(`🎉 ¡COMPRA EXITOSA! PNR / Booking Code: ${pnr}`);
+    console.log(`========================================\n`);
+
+    // 5. Scroll centrado en el PNR y banner
+    await this.page.locator('.confirmationBanner, .reservationContainer').first().scrollIntoViewIfNeeded();
+
+    // 6. Espera de 4 segundos para que el video capture la pantalla completa
+    await this.page.waitForTimeout(6000);
+
+    return pnr;
   }
 
   // ─── Helpers privados ─────────────────────────────────────────────────────

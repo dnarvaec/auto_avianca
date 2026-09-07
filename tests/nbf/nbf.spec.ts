@@ -30,7 +30,7 @@ const TC_FILTER = process.env['TC_FILTER']?.trim() ?? '';
 // ─── Helpers para buildNbfUrl ────────────────────────────────────────────────
 
 /** Abreviaciones de mes en ingles para el formato de fecha NBF (DDMMM) */
-const NBF_MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const NBF_MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 /**
  * Convierte una fecha ISO del Excel ("2026-10-01T00:00:00.000Z")
@@ -49,12 +49,12 @@ function toNbfDate(isoDate: string): string | null {
 /** Mapeo del POS del Excel al codigo de pais para el parametro Pais de la URL */
 const POS_TO_COUNTRY: Record<string, string> = {
   COP: 'CO', CO: 'CO',
-  US:  'US',
-  BR:  'BR',
-  ES:  'ES',
-  UK:  'UK', GB: 'UK',
-  AR:  'AR',
-  MX:  'MX',
+  US: 'US',
+  BR: 'BR',
+  ES: 'ES',
+  UK: 'UK', GB: 'UK',
+  AR: 'AR',
+  MX: 'MX',
 };
 
 /**
@@ -93,10 +93,10 @@ function buildNbfUrl(baseUrl: string, tc: NbfCaseData): string {
     }
 
     // ── Pasajeros ──────────────────────────────────────────────────────────
-    url.searchParams.set('na', String(Math.max(1, Number(tc.Adultos)  || 1)));
-    url.searchParams.set('nj', String(Number(tc.Youngs)               || 0));
-    url.searchParams.set('nn', String(Number(tc.Children)             || 0));
-    url.searchParams.set('ni', String(Number(tc.Infants)              || 0));
+    url.searchParams.set('na', String(Math.max(1, Number(tc.Adultos) || 1)));
+    url.searchParams.set('nj', String(Number(tc.Youngs) || 0));
+    url.searchParams.set('nn', String(Number(tc.Children) || 0));
+    url.searchParams.set('ni', String(Number(tc.Infants) || 0));
 
     // ── Pais (del POS) ─────────────────────────────────────────────────────
     const country = POS_TO_COUNTRY[String(tc.POS).toUpperCase()] ?? String(tc.POS);
@@ -118,19 +118,17 @@ function buildNbfUrl(baseUrl: string, tc: NbfCaseData): string {
  * El reporte mostrara 5 screenshots por caso de prueba.
  */
 async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<void> {
-  const availPage       = new AvailabilityPage(page);
-  const tripSummary     = new TripSummaryPage(page);
-  const travelersPage   = new TravelersPage(page);
+  const availPage = new AvailabilityPage(page);
+  const tripSummary = new TripSummaryPage(page);
+  const travelersPage = new TravelersPage(page);
   const ancillariesPage = new AncillariesPage(page);
-  const paymentPage     = new PaymentPage(page);
+  const paymentPage = new PaymentPage(page);
 
   // 1/N: Seleccion de vuelo y bundle -----------------------------------------
   // La URL se construye dinamicamente con los pasajeros del caso (na/nj/nn/ni)
   const nbfUrl = buildNbfUrl(url, tc);
   await step(page, '1 -- Vuelo + Bundle', async () => {
     await page.goto(nbfUrl);
-    await availPage.dismissCookies();
-    await availPage.waitForFlights();
     await availPage.selectFirstFlight();
     await availPage.selectBundle(String(tc.Bundle));
     await tripSummary.waitForPage();
@@ -153,11 +151,11 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
     await travelersPage.continue();
     await ancillariesPage.waitForPage();
     await ancillariesPage.handleAncillaries({
-      Asiento:                String(tc.Asiento),
-      'Equipaje Adic':        String(tc['Equipaje Adic']),
-      'Sala VIP':             String(tc['Sala VIP']),
-      'Equipaje Deportivo':   String(tc['Equipaje Deportivo']),
-      'Asistencia Viaje':     String(tc['Asistencia Viaje']),
+      Asiento: String(tc.Asiento),
+      'Equipaje Adic': String(tc['Equipaje Adic']),
+      'Sala VIP': String(tc['Sala VIP']),
+      'Equipaje Deportivo': String(tc['Equipaje Deportivo']),
+      'Asistencia Viaje': String(tc['Asistencia Viaje']),
       'Abordaje Prioritario': String(tc['Abordaje Prioritario']),
     });
   });
@@ -169,10 +167,13 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
     await paymentPage.fillPaymentForm(PAYMENT);
   });
 
-  // 5/N: Confirmar pago y verificar exito ------------------------------------
+  // 5/N: Confirmar pago y verificar éxito ------------------------------------
   await step(page, '5 -- Confirmacion de pago', async () => {
     await paymentPage.submitPayment();
-    await paymentPage.assertPaymentSuccess();
+    const pnr = await paymentPage.assertPaymentSuccess();
+
+    // Registrar PNR en las anotaciones del reporte
+    test.info().annotations.push({ type: 'Booking Code (PNR)', description: pnr });
   });
 }
 
@@ -196,14 +197,14 @@ test.describe('NBF -- One Way (DDT)', () => {
 
       await test.step(`[${tc.TC}] ${tc.Cobertura} | POS:${tc.POS} | Bundle:${tc.Bundle}`, async () => {
         try {
-        await runNbfCase(page, tc, URLS.NBF_OW);
+          await runNbfCase(page, tc, URLS.NBF_OW);
         } catch (err) {
           // Registrar el fallo sin detener el resto de las filas
           const msg = `[${tc.TC}] FALLO: ${(err as Error).message}`;
           failures.push(msg);
           console.error(msg);
           // Navegar a URL base para limpiar el estado del browser antes del siguiente caso
-          await page.goto('about:blank').catch(() => {});
+          await page.goto('about:blank').catch(() => { });
         }
       });
     }
@@ -235,12 +236,12 @@ test.describe('NBF -- Round Trip (DDT)', () => {
 
       await test.step(`[${tc.TC}] ${tc.Cobertura} | POS:${tc.POS} | Bundle:${tc.Bundle}`, async () => {
         try {
-        await runNbfCase(page, tc, URLS.NBF_RT);
+          await runNbfCase(page, tc, URLS.NBF_RT);
         } catch (err) {
           const msg = `[${tc.TC}] FALLO: ${(err as Error).message}`;
           failures.push(msg);
           console.error(msg);
-          await page.goto('about:blank').catch(() => {});
+          await page.goto('about:blank').catch(() => { });
         }
       });
     }

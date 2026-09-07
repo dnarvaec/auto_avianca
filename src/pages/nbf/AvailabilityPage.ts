@@ -3,10 +3,9 @@ import { BasePage } from '../BasePage';
 
 /**
  * Page Object — Paso 1: Selección de vuelo y bundle
- * URL: /av/booking/avail
+ * URL: /av/booking/avail o /av/demo-booking/avail
  */
 
-/** Selector del tab de cabina */
 const CABIN_TAB: Record<string, string> = {
   Eco: 'Economy',
   Bus: '[data-testid="business-tab"]',
@@ -20,81 +19,62 @@ export class AvailabilityPage extends BasePage {
   constructor(page: Page) {
     super(page);
     this.cookieAcceptBtn = page.locator(
-      '#onetrust-accept-btn-handler, button:has-text("Allow all"), button:has-text("Accept")'
+      '#onetrust-accept-btn-handler, button:has-text("Allow all"), button:has-text("Accept"), button:has-text("Aceptar")'
     );
     this.flightCards = page.locator('button.flight-container');
   }
 
-  // ─── Navegación y Helpers ──────────────────────────────────────────────────
+  // ─── Navegación y Cookies ──────────────────────────────────────────────────
 
   async dismissCookies(): Promise<void> {
-    // 1. Aceptar banner de cookies si aparece
     const acceptBtn = this.cookieAcceptBtn.first();
-    if (await acceptBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await acceptBtn.click().catch(() => { });
-      await this.page.waitForTimeout(300);
+    if (await acceptBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await acceptBtn.click({ force: true }).catch(() => { });
+      await this.page.waitForTimeout(200);
     }
 
-    // 2. Cerrar panel de preferencias si quedó abierto
-    const darkFilter = this.page.locator('.onetrust-pc-dark-filter');
-    if (await darkFilter.isVisible({ timeout: 2000 }).catch(() => false)) {
-      const closeBtn = this.page
-        .locator('#close-pc-btn-handler, .onetrust-close-btn-handler')
-        .first();
-
-      if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await closeBtn.click({ force: true }).catch(() => { });
-      } else {
-        await this.page
-          .locator('.save-preference-btn-handler')
-          .first()
-          .click({ force: true })
-          .catch(() => { });
-      }
+    const darkFilter = this.page.locator('.onetrust-pc-dark-filter, #onetrust-banner-sdk');
+    if (await darkFilter.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await darkFilter.evaluate(el => el.remove()).catch(() => { });
     }
-
-    // 3. Esperar que todo overlay desaparezca antes de continuar
-    await this.page
-      .locator('.onetrust-pc-dark-filter, #onetrust-banner-sdk')
-      .waitFor({ state: 'hidden', timeout: 5000 })
-      .catch(() => { });
   }
 
   async waitForFlights(): Promise<void> {
-    // 1. Esperar que desaparezcan los skeletons o spinners de carga de vuelos
-    const loader = this.page.locator('mat-spinner, .avail-loading, [class*="skeleton"], [class*="loading-spinner"]');
-    await loader.waitFor({ state: 'hidden', timeout: 35000 }).catch(() => { });
-
-    // 2. Dar hasta 30 segundos al primer vuelo para renderizarse (QA puede ser lento)
-    await expect(this.flightCards.first()).toBeVisible({ timeout: 30000 });
+    // Esperar directamente a que el primer vuelo esté visible en el DOM (sin trabarse en skeletons)
+    await expect(this.flightCards.first()).toBeVisible({ timeout: 35000 });
   }
 
+  // ─── Acciones ──────────────────────────────────────────────────────────────
+
+  /**
+   * Selecciona el primer vuelo disponible y asegura la apertura de los bundles.
+   */
   async selectFirstFlight(): Promise<void> {
     await this.dismissCookies();
-
-    // Esperamos formalmente a que la búsqueda de vuelos termine
     await this.waitForFlights();
 
     const firstFlight = this.flightCards.first();
     await firstFlight.scrollIntoViewIfNeeded();
 
+    // Indicador exacto de que el panel de bundles se abrió
     const bundlePriceIndicator = this.page
       .locator('button.ff-price-container, [data-testid*="ff-price-container"]')
       .first();
 
+    // Bucle resiliente: hace clic en la tarjeta del vuelo hasta que el bundle sea visible
     await expect(async () => {
       if (!(await bundlePriceIndicator.isVisible())) {
-        await firstFlight.click({ force: false });
+        await firstFlight.click();
       }
       await expect(bundlePriceIndicator).toBeVisible({ timeout: 3000 });
     }).toPass({
       intervals: [500, 1000, 2000],
-      timeout: 15000,
+      timeout: 20000,
     });
   }
 
   /**
-   * Selecciona la cabina y el bundle según el valor (ej. "Eco Basic", "Bus Flex").
+   * Selecciona la cabina y el bundle según el valor del Excel (ej. "Eco Basic", "Bus Flex").
    */
   async selectBundle(bundle: string): Promise<void> {
     const [cabinKey, bundleName] = bundle.split(' ') as [string, string];
@@ -104,13 +84,13 @@ export class AvailabilityPage extends BasePage {
     if (cabinKey === 'Bus') {
       const busTab = this.page.locator(CABIN_TAB.Bus);
       await expect(busTab).toBeVisible({ timeout: 5000 });
-      await busTab.click();
-      await this.page.waitForTimeout(500);
+      await busTab.click({ force: true });
+      await this.page.waitForTimeout(400);
     } else {
       const ecoTab = this.page.getByText(CABIN_TAB.Eco, { exact: true });
-      if (await ecoTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await ecoTab.click();
-        await this.page.waitForTimeout(300);
+      if (await ecoTab.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await ecoTab.click({ force: true });
+        await this.page.waitForTimeout(200);
       }
     }
 
@@ -119,23 +99,22 @@ export class AvailabilityPage extends BasePage {
       ? `ff-price-container-BC ${bundleUpper}`
       : `ff-price-container-${bundleUpper}`;
 
-    // Buscamos directamente por data-testid en la página para evitar restricciones de contenedor
     const priceBtn = this.page.getByTestId(priceTestId).first();
-    await expect(priceBtn).toBeVisible({ timeout: 10000 });
+
+    await expect(priceBtn).toBeVisible({ timeout: 15000 });
     await priceBtn.scrollIntoViewIfNeeded();
     await priceBtn.click({ force: true });
 
     // ── Modal CRO #FB1375 (Upsell para Basic y Classic) ────────────────────
     if (cabinKey !== 'Bus' && (bundleUpper === 'BASIC' || bundleUpper === 'CLASSIC')) {
-      await this.page.waitForTimeout(1500);
+      await this.page.waitForTimeout(1000);
 
-      const mainBtn = this.page.locator('#FB1375 .cro-no-accept-upsell-button');
+      const mainBtn = this.page.locator('#FB1375 .cro-no-accept-upsell-button, .cro-no-accept-upsell-button').first();
       if (await mainBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await mainBtn.click({ force: true });
       } else {
-        // Fallback: Si el modal está dentro de un iframe
         for (const frame of this.page.frames()) {
-          const frameBtn = frame.locator('.cro-no-accept-upsell-button');
+          const frameBtn = frame.locator('.cro-no-accept-upsell-button').first();
           if (await frameBtn.isVisible({ timeout: 500 }).catch(() => false)) {
             await frameBtn.click({ force: true });
             break;
@@ -144,7 +123,7 @@ export class AvailabilityPage extends BasePage {
       }
     }
 
-    // Esperar navegación al Trip Summary
+    // Esperar navegación al Trip Summary (Soporta /booking/trip y /demo-booking/trip)
     await this.page.waitForURL(/.*\/trip/, { timeout: 25000 });
   }
 }
