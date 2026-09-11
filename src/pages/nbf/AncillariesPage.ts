@@ -52,7 +52,7 @@ export class AncillariesPage extends BasePage {
       .catch(() => false);
 
     if (isPresent) {
-      await targetLabel.scrollIntoViewIfNeeded();
+      await this.smoothScroll(targetLabel, 350);
       await targetLabel.click();
       await this.page.waitForTimeout(400);
     }
@@ -88,7 +88,7 @@ export class AncillariesPage extends BasePage {
 
   async goToPayment(): Promise<void> {
     await expect(this.goToPaymentBtn).toBeVisible({ timeout: 15000 });
-    await this.goToPaymentBtn.scrollIntoViewIfNeeded();
+    await this.smoothScroll(this.goToPaymentBtn, 400);
 
     // Bucle resiliente: asegura que el clic active la redirección a la pasarela
     await expect(async () => {
@@ -114,11 +114,13 @@ export class AncillariesPage extends BasePage {
 
     const availableSeat = this.page.getByRole('button', { name: /Seat number/i }).first();
     if (await availableSeat.isVisible({ timeout: 6000 }).catch(() => false)) {
+      await this.smoothScroll(availableSeat, 300);
       await availableSeat.click();
       await this.page.waitForTimeout(300);
     }
     const saveBtn = this.page.getByRole('button', { name: /Save and exit|Guardar y salir|Confirm/i }).first();
     if (await saveBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.smoothScroll(saveBtn, 300);
       await saveBtn.click();
     }
     await this.waitForPage();
@@ -139,6 +141,7 @@ export class AncillariesPage extends BasePage {
 
     // Clic con timeout corto (máximo 2s) para no congelar el flujo
     if (await increaseBtn.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)) {
+      await this.smoothScroll(increaseBtn, 200);
       await increaseBtn.click({ timeout: 2000 }).catch(() => { });
       await this.page.waitForTimeout(300);
     }
@@ -154,6 +157,7 @@ export class AncillariesPage extends BasePage {
 
     const selectAll = this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i }).first();
     if (await selectAll.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.smoothScroll(selectAll, 250);
       await selectAll.check();
       await this.page.waitForTimeout(300);
     }
@@ -169,6 +173,7 @@ export class AncillariesPage extends BasePage {
     while (true) {
       const bagEl = this.page.getByTestId(`bag-element-0-${idx}`);
       if (!(await bagEl.isVisible({ timeout: 1000 }).catch(() => false))) break;
+      await this.smoothScroll(bagEl, 200);
       await bagEl.getByRole('button', { name: /Increase number of pieces/i }).click();
       await this.page.waitForTimeout(200);
       idx++;
@@ -191,6 +196,7 @@ export class AncillariesPage extends BasePage {
 
     const selectAll = this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i }).first();
     if (await selectAll.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.smoothScroll(selectAll, 250);
       await selectAll.check();
       await this.page.waitForTimeout(300);
     }
@@ -222,7 +228,7 @@ export class AncillariesPage extends BasePage {
       return false;
     }
 
-    await card.scrollIntoViewIfNeeded();
+    await this.smoothScroll(card, 350);
     await card.click();
     await this.page.waitForTimeout(500);
     return true;
@@ -235,6 +241,7 @@ export class AncillariesPage extends BasePage {
 
     const isReady = await confirmBtn.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
     if (isReady) {
+      await this.smoothScroll(confirmBtn, 300);
       await confirmBtn.click({ force: true });
       // Esperar a que el backdrop/overlay del modal desaparezca
       await this.page.locator('.cdk-overlay-backdrop, mat-dialog-container').first().waitFor({ state: 'hidden', timeout: 4000 }).catch(() => { });

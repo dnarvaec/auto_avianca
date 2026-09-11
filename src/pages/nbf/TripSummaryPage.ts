@@ -32,7 +32,7 @@ export class TripSummaryPage extends BasePage {
   async continue(): Promise<void> {
     // 1. Clic en el botón principal de Continuar del Trip Summary
     await expect(this.continueBtn).toBeVisible({ timeout: 15000 });
-    await this.continueBtn.scrollIntoViewIfNeeded();
+    await this.smoothScroll(this.continueBtn, 400);
     await this.continueBtn.click();
 
     // 2. El modal de Late Login es condicional:
@@ -43,6 +43,7 @@ export class TripSummaryPage extends BasePage {
       .catch(() => false);
 
     if (modalAppeared) {
+      await this.smoothScroll(this.lateLoginContinueBtn, 300);
       await this.lateLoginContinueBtn.click();
     }
 

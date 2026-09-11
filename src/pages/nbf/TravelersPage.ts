@@ -17,12 +17,11 @@ const NATIONALITY_MAP: Record<string, string> = {
 
 const GENERIC_BIRTH_YEARS = {
   adult: 1990,
-  young: 2013,  // 13 años (rango 12-14)
-  child: 2020,  //  6 años (rango 2-11)
-  infant: 2025,  //  1 año  (< 2)
+  young: 2013,
+  child: 2020,
+  infant: 2025,
 } as const;
 
-// Nombres y apellidos genéricos 100% alfabéticos (sin números)
 const GENERIC = { firstName: 'Test', lastName: 'Passenger', day: '1', monthIndex: '1', nationality: 'CO' };
 
 interface PanelData {
@@ -57,7 +56,6 @@ export class TravelersPage extends BasePage {
     this.confirmEmailInput = page.getByTestId('confirm-email-input-element').or(page.locator('input[formcontrolname="confirmEmail"]'));
     this.privacyCheckbox = page.locator('mat-checkbox[formcontrolname="isPrivacyPolicyAccepted"]');
 
-    // Selectores priorizando la versión de escritorio visible
     this.continueBtn = page.locator(
       '#continue-btn-footer, #continue-btn-footer-static, [data-testid="cart-continue-btn"], [data-testid*="order-continue-btn-footer"], button.cart-continue-btn, button.btn-primary-black, button[data-testid="continue-ancillaries-btn-mobile"]'
     ).filter({ hasText: /Continue|Continuar/i });
@@ -81,11 +79,10 @@ export class TravelersPage extends BasePage {
     const numInfants = Number(tc.Infants) || 0;
 
     const dob1 = String(tc['F.Nac']).split('T')[0].split('-');
-
-    // Adult 1 — Datos reales del Excel (limpieza de números/espacios)
     const rawFirstName = String(tc.Nombre).trim().split(' ')[0] ?? 'Juan';
     const rawLastName = String(tc.Nombre).trim().split(' ').slice(1).join(' ') || rawFirstName;
 
+    // Adult 1
     await this.fillPassengerPanel('Adult 1', {
       gender: String(tc.Genero).toUpperCase() === 'M' ? 'male' : 'female',
       firstName: rawFirstName.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, ''),
@@ -97,7 +94,7 @@ export class TravelersPage extends BasePage {
       lifeMiles: String(tc.LifeMiles).toLowerCase() === 'si',
     });
 
-    // Adults adicionales (Adult 2+) — Solo letras
+    // Adults adicionales
     for (let i = 2; i <= numAdults; i++) {
       await this.fillPassengerPanel(`Adult ${i}`, {
         gender: 'male',
@@ -110,7 +107,7 @@ export class TravelersPage extends BasePage {
       });
     }
 
-    // Youths (12-14) — Solo letras
+    // Youths (12-14)
     for (let i = 1; i <= numYoungs; i++) {
       await this.fillPassengerPanel(`Youth ${i}`, {
         gender: 'male',
@@ -123,7 +120,7 @@ export class TravelersPage extends BasePage {
       });
     }
 
-    // Children (2-11) — Solo letras
+    // Children (2-11)
     for (let i = 1; i <= numChildren; i++) {
       await this.fillPassengerPanel(`Child ${i}`, {
         gender: 'male',
@@ -136,7 +133,7 @@ export class TravelersPage extends BasePage {
       });
     }
 
-    // Infants (< 2) — Solo letras
+    // Infants (< 2)
     for (let i = 1; i <= numInfants; i++) {
       await this.fillPassengerPanel(`Infant ${i}`, {
         gender: 'male',
@@ -153,23 +150,25 @@ export class TravelersPage extends BasePage {
   // ─── Booking Holder ────────────────────────────────────────────────────────
 
   async fillBookingHolder(telefono: string, correo: string): Promise<void> {
+    // 1. Scroll suave al panel del titular
     const holderPanelHeader = this.page.locator(
       'mat-expansion-panel.accordion__panel--booking-holder mat-expansion-panel-header, mat-expansion-panel-header:has-text("Booking holder")'
     ).first();
 
     if (await holderPanelHeader.isVisible({ timeout: 8000 }).catch(() => false)) {
+      await this.smoothScroll(holderPanelHeader, 400);
       const isExpanded = await holderPanelHeader.getAttribute('aria-expanded').then(v => v === 'true').catch(() => false);
       if (!isExpanded) {
-        await holderPanelHeader.scrollIntoViewIfNeeded();
         await holderPanelHeader.click();
         await expect(holderPanelHeader).toHaveAttribute('aria-expanded', 'true', { timeout: 5000 });
         await this.page.waitForTimeout(300);
       }
     }
 
-    // Dropdown de pasajero titular
+    // 2. Dropdown pasajero titular
     const holderSelect = this.page.locator('mat-select[formcontrolname="bookingHolder"]').first();
     if (await holderSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.smoothScroll(holderSelect, 250);
       await holderSelect.click();
       const firstOpt = this.page.getByRole('option').first();
       if (await firstOpt.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -178,7 +177,7 @@ export class TravelersPage extends BasePage {
       await this.page.waitForTimeout(200);
     }
 
-    // Prefijo telefónico
+    // 3. Prefix (+57)
     if (await this.prefixInput.isVisible({ timeout: 2000 }).catch(() => false)) {
       await this.prefixInput.fill('+57');
       await this.page.waitForTimeout(300);
@@ -188,16 +187,19 @@ export class TravelersPage extends BasePage {
       }
     }
 
-    // Teléfono y Correo
+    // 4. Scroll a datos de contacto y llenado
+    await this.smoothScroll(this.phoneInput, 300);
     await this.phoneInput.fill(String(telefono));
     await this.emailInput.fill(String(correo));
     await this.confirmEmailInput.fill(String(correo));
 
-    // Checkbox de Privacidad
+    // 5. Scroll suave a la casilla de Políticas de Privacidad
     const privacyNative = this.privacyCheckbox.locator('input[type="checkbox"]').first();
     if (await privacyNative.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.smoothScroll(this.privacyCheckbox, 350);
       if (!(await privacyNative.isChecked())) {
         await privacyNative.click({ force: true });
+        await this.page.waitForTimeout(200);
       }
     }
   }
@@ -205,14 +207,14 @@ export class TravelersPage extends BasePage {
   // ─── Continuar al siguiente paso (Ancillaries) ─────────────────────────────
 
   async continue(): Promise<void> {
-    // Filtrar solo el botón que sea visible en pantalla (ignorando el móvil oculto)
     const activeContinueBtn = this.continueBtn.and(this.page.locator(':visible')).first();
 
     await expect(activeContinueBtn).toBeVisible({ timeout: 15000 });
-    await activeContinueBtn.scrollIntoViewIfNeeded();
+    // Scroll centrado en el botón de continuar para captura clara en video
+    await this.smoothScroll(activeContinueBtn, 500);
     await activeContinueBtn.click();
 
-    // Esperar a que la sección de ancillaries aparezca o cambie la URL
+    // Esperar transición
     const ancillariesSection = this.page.locator(
       '.ancilliaries-section:not(.hidden), .content--ancillaries, optional-services-container, baggage-decision-section'
     ).first();
@@ -237,7 +239,7 @@ export class TravelersPage extends BasePage {
     }).first();
 
     await expect(header).toBeVisible({ timeout: 10000 });
-    await header.scrollIntoViewIfNeeded();
+    await this.smoothScroll(header, 350);
 
     const isExpanded = await header.getAttribute('aria-expanded').then(v => v === 'true').catch(() => false);
     if (!isExpanded) {
@@ -254,39 +256,40 @@ export class TravelersPage extends BasePage {
     const genderSelect = panel.getByTestId('gender-select').first();
 
     await expect(genderSelect).toBeVisible({ timeout: 10000 });
-    await genderSelect.scrollIntoViewIfNeeded();
+    await this.smoothScroll(genderSelect, 250);
     await genderSelect.click();
 
-    // ── Género
+    // Género
     const genderRegex = data.gender === 'male' ? /^male|^masculino/i : /^female|^femenino/i;
     const genderOption = this.page.getByRole('option', { name: genderRegex }).first();
     await expect(genderOption).toBeVisible({ timeout: 5000 });
     await genderOption.click();
     await this.page.waitForTimeout(200);
 
-    // ── Nombre y Apellido (100% letras)
+    // Nombre y Apellido
     const firstNameInput = panel.getByTestId('first-name-input').first();
     await firstNameInput.fill(data.firstName);
 
     const lastNameInput = panel.getByTestId('last-name-input').first();
     await lastNameInput.fill(data.lastName);
 
-    // ── Fecha de Nacimiento
+    // Fecha de Nacimiento
     await this.fillDOB(panel.getByTestId('date-of-birth'), data.day, data.monthIndex, data.year);
 
-    // ── Nacionalidad
+    // Nacionalidad
     await this.fillNationality(panel.locator('input[data-test="TA-tp-Nationality"]'), data.nationality);
 
-    // ── LifeMiles
+    // LifeMiles
     if (data.lifeMiles) {
       await this.fillLifeMiles(panel);
     }
 
-    // ── Botón Next del panel
+    // Botón Next del panel
     const nextBtn = panel.locator('button[data-testid="traveler-panel__actions-next"]').first();
     if (await nextBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await this.smoothScroll(nextBtn, 200);
       await nextBtn.click();
-      await this.page.waitForTimeout(400);
+      await this.page.waitForTimeout(350);
     }
   }
 
@@ -297,7 +300,7 @@ export class TravelersPage extends BasePage {
 
     // 1. Día
     const dayInput = container.locator('input[placeholder="Day"]').first();
-    await dayInput.scrollIntoViewIfNeeded();
+    await this.smoothScroll(dayInput, 150);
     await dayInput.click();
     await dayInput.fill(String(parseInt(day, 10)));
     await this.page.keyboard.press('Tab');
@@ -320,7 +323,7 @@ export class TravelersPage extends BasePage {
   }
 
   private async fillNationality(input: Locator, countryName: string): Promise<void> {
-    await input.scrollIntoViewIfNeeded();
+    await this.smoothScroll(input, 150);
     await input.click();
     await input.fill(countryName);
     await this.page.waitForTimeout(400);
@@ -336,11 +339,10 @@ export class TravelersPage extends BasePage {
   }
 
   private async fillLifeMiles(panel: Locator): Promise<void> {
-    // 1. Marcar el checkbox de LifeMiles
     const lmCheckbox = panel.locator('mat-checkbox[data-testid="ff-checkbox"]').first();
 
     if (await lmCheckbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await lmCheckbox.scrollIntoViewIfNeeded();
+      await this.smoothScroll(lmCheckbox, 300);
       const nativeInput = lmCheckbox.locator('input[type="checkbox"]').first();
 
       if (!(await nativeInput.isChecked().catch(() => false))) {
@@ -348,7 +350,6 @@ export class TravelersPage extends BasePage {
         await this.page.waitForTimeout(400);
       }
 
-      // 2. Si existe un dropdown de programa, asegurar Lifemiles (opcional)
       const programSelect = panel.locator('mat-select[formcontrolname="programCode"]').first();
       if (await programSelect.isVisible({ timeout: 1500 }).catch(() => false)) {
         await programSelect.click({ force: true });
@@ -359,13 +360,12 @@ export class TravelersPage extends BasePage {
         await this.page.waitForTimeout(200);
       }
 
-      // 3. Llenar el número de LifeMiles directamente sin clic que sea interceptado por el label
       const ffNumberInput = panel.getByTestId('ff-number')
         .or(panel.locator('input[formcontrolname="cardNumber"]'))
         .first();
 
       await expect(ffNumberInput).toBeVisible({ timeout: 5000 });
-      await ffNumberInput.scrollIntoViewIfNeeded();
+      await this.smoothScroll(ffNumberInput, 250);
       await ffNumberInput.fill('123456', { force: true });
       await ffNumberInput.blur().catch(() => { });
       await this.page.waitForTimeout(200);

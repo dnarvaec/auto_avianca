@@ -104,7 +104,7 @@ export class PaymentPage extends BasePage {
     await this.dismissCookies();
 
     const cardLabel = this.cardItemContainer.locator('.payment-method__header, label').first();
-    await cardLabel.scrollIntoViewIfNeeded();
+    await this.smoothScroll(cardLabel, 350);
 
     await cardLabel.click({ force: true });
     await this.cardMethodRadio.check({ force: true }).catch(() => { });
@@ -116,10 +116,12 @@ export class PaymentPage extends BasePage {
     await this.expandCreditCard();
     
     // ── 1. Nombre y Apellido del Titular ────────────────────────────────────
+    await this.smoothScroll(this.holderNameInput, 250);
     await this.holderNameInput.fill(payment.holderName);
     await this.holderLastnameInput.fill(payment.holderLastname);
 
     // ── 2. Número de Tarjeta (Uso de pressSequentially para activar formateador JS)
+    await this.smoothScroll(this.cardNumberInput, 250);
     await this.cardNumberInput.click();
     await this.cardNumberInput.clear().catch(() => { });
     await this.cardNumberInput.pressSequentially(payment.cardNumber.replace(/\s+/g, ''), { delay: 35 });
@@ -132,7 +134,7 @@ export class PaymentPage extends BasePage {
 
     // ── Seleccionar Mes
     const monthTrigger = this.expiryMonthTrigger.first();
-    await monthTrigger.scrollIntoViewIfNeeded();
+    await this.smoothScroll(monthTrigger, 250);
     await monthTrigger.click();
 
     const monthOption = this.page.locator(`#expiryMonth-list-panel button[data-value="${mmPadded}"]`).first();
@@ -142,7 +144,7 @@ export class PaymentPage extends BasePage {
 
     // ── Seleccionar Año
     const yearTrigger = this.expiryYearTrigger.first();
-    await yearTrigger.scrollIntoViewIfNeeded();
+    await this.smoothScroll(yearTrigger, 250);
     await yearTrigger.click();
 
     const yearOption = this.page.locator(`#expiryYear-list-panel button[data-value="${yyPadded}"]`).first();
@@ -151,6 +153,7 @@ export class PaymentPage extends BasePage {
     await this.page.waitForTimeout(200);
 
     // ── 4. CVV (Limpieza y escritura controlada) ───────────────────────────
+    await this.smoothScroll(this.cvvInput, 200);
     await this.cvvInput.click();
     await this.cvvInput.clear().catch(() => { });
     await this.cvvInput.pressSequentially(payment.cvv, { delay: 35 });
@@ -158,10 +161,12 @@ export class PaymentPage extends BasePage {
 
     // ── 5. Datos de Contacto y Facturación ──────────────────────────────────
     await expect(this.emailInput).toBeVisible({ timeout: 10000 });
+    await this.smoothScroll(this.emailInput, 250);
     await this.emailInput.fill(payment.email);
 
     // Código de área
     if (await this.areaCodeTrigger.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+      await this.smoothScroll(this.areaCodeTrigger.first(), 200);
       await this.areaCodeTrigger.first().click({ force: true });
       await this.page.waitForTimeout(300);
       const areaBtn = this.page.locator('#areaCodeTc-list-panel button').filter({ hasText: 'Colombia' }).first();
@@ -170,10 +175,12 @@ export class PaymentPage extends BasePage {
       }
     }
 
+    await this.smoothScroll(this.phoneInput, 200);
     await this.phoneInput.fill(payment.phone);
 
     // País
     if (await this.countryTrigger.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+      await this.smoothScroll(this.countryTrigger.first(), 200);
       await this.countryTrigger.first().click({ force: true });
       await this.page.waitForTimeout(300);
       const countryBtn = this.page.locator('#country-list-panel button').filter({ hasText: payment.country }).first();
@@ -183,15 +190,17 @@ export class PaymentPage extends BasePage {
     }
 
     if (await this.cityInput.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await this.smoothScroll(this.cityInput, 200);
       await this.cityInput.fill(payment.city);
     }
 
+    await this.smoothScroll(this.addressInput, 200);
     await this.addressInput.fill(payment.address);
 
     // ── 6. Aceptar Términos y Condiciones ───────────────────────────────────
     const termsInput = this.termsCheckbox.first();
     if (await termsInput.isVisible({ timeout: 4000 }).catch(() => false)) {
-      await termsInput.scrollIntoViewIfNeeded();
+      await this.smoothScroll(termsInput, 300);
       await termsInput.evaluate((el: HTMLInputElement) => {
         if (!el.checked) {
           el.click();
@@ -206,7 +215,7 @@ export class PaymentPage extends BasePage {
   async submitPayment(): Promise<void> {
     const submitBtn = this.payBtn.first();
     await expect(submitBtn).toBeVisible({ timeout: 15000 });
-    await submitBtn.scrollIntoViewIfNeeded();
+    await this.smoothScroll(submitBtn, 400);
     await submitBtn.click({ force: true });
     await this.page.waitForLoadState('domcontentloaded', { timeout: 30000 });
   }
@@ -237,7 +246,10 @@ export class PaymentPage extends BasePage {
     console.log(`========================================\n`);
 
     // 5. Scroll centrado en el PNR y banner
-    await this.page.locator('.confirmationBanner, .reservationContainer').first().scrollIntoViewIfNeeded();
+    const banner = this.page.locator('.confirmationBanner, .reservationContainer').first();
+    if (await banner.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.smoothScroll(banner, 500);
+    }
 
     // 6. Espera para capturar el reporte en video
     await this.page.waitForTimeout(6000);

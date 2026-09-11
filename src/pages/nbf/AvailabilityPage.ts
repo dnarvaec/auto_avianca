@@ -54,7 +54,7 @@ export class AvailabilityPage extends BasePage {
     await this.waitForFlights();
 
     const firstFlight = this.flightCards.first();
-    await firstFlight.scrollIntoViewIfNeeded();
+    await this.smoothScroll(firstFlight, 400);
 
     // Indicador exacto de que el panel de bundles se abrió
     const bundlePriceIndicator = this.page
@@ -84,11 +84,13 @@ export class AvailabilityPage extends BasePage {
     if (cabinKey === 'Bus') {
       const busTab = this.page.locator(CABIN_TAB.Bus);
       await expect(busTab).toBeVisible({ timeout: 5000 });
+      await this.smoothScroll(busTab, 300);
       await busTab.click({ force: true });
       await this.page.waitForTimeout(400);
     } else {
       const ecoTab = this.page.getByText(CABIN_TAB.Eco, { exact: true });
       if (await ecoTab.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await this.smoothScroll(ecoTab, 200);
         await ecoTab.click({ force: true });
         await this.page.waitForTimeout(200);
       }
@@ -102,7 +104,7 @@ export class AvailabilityPage extends BasePage {
     const priceBtn = this.page.getByTestId(priceTestId).first();
 
     await expect(priceBtn).toBeVisible({ timeout: 15000 });
-    await priceBtn.scrollIntoViewIfNeeded();
+    await this.smoothScroll(priceBtn, 400);
     await priceBtn.click({ force: true });
 
     // ── Modal CRO #FB1375 (Upsell para Basic y Classic) ────────────────────
@@ -111,11 +113,13 @@ export class AvailabilityPage extends BasePage {
 
       const mainBtn = this.page.locator('#FB1375 .cro-no-accept-upsell-button, .cro-no-accept-upsell-button').first();
       if (await mainBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await this.smoothScroll(mainBtn, 300);
         await mainBtn.click({ force: true });
       } else {
         for (const frame of this.page.frames()) {
           const frameBtn = frame.locator('.cro-no-accept-upsell-button').first();
           if (await frameBtn.isVisible({ timeout: 500 }).catch(() => false)) {
+            await this.smoothScroll(frameBtn, 200);
             await frameBtn.click({ force: true });
             break;
           }

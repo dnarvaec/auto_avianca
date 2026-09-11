@@ -25,15 +25,31 @@ export abstract class BasePage {
     return this.page.title();
   }
 
+  // ─── Scroll Inteligente ─────────────────────────────────────
+
+  /**
+   * Realiza un scroll suave y centra el elemento en el viewport
+   * para que quede perfectamente visible en los videos de evidencia.
+   */
+  async smoothScroll(locator: Locator, timeout = 300): Promise<void> {
+    const el = locator.first();
+    await el.evaluate((node: HTMLElement) => {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }).catch(() => { });
+    await this.page.waitForTimeout(timeout);
+  }
+
   // ─── Acciones protegidas ────────────────────────────────────
 
   protected async clickElement(locator: Locator): Promise<void> {
     await expect(locator).toBeVisible();
+    await this.smoothScroll(locator);
     await locator.click();
   }
 
   protected async fillInput(locator: Locator, value: string): Promise<void> {
     await expect(locator).toBeVisible();
+    await this.smoothScroll(locator);
     await locator.fill(value);
   }
 
