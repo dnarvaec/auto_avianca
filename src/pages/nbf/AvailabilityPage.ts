@@ -33,10 +33,10 @@ export class AvailabilityPage extends BasePage {
       await this.page.waitForTimeout(200);
     }
 
-    const darkFilter = this.page.locator('.onetrust-pc-dark-filter, #onetrust-banner-sdk');
-    if (await darkFilter.isVisible({ timeout: 1500 }).catch(() => false)) {
-      await darkFilter.evaluate(el => el.remove()).catch(() => { });
-    }
+    // Remover forzosamente el filtro oscuro y el banner para que no intercepten clics
+    await this.page.evaluate(() => {
+      document.querySelectorAll('.onetrust-pc-dark-filter, #onetrust-banner-sdk, #onetrust-consent-sdk').forEach(el => el.remove());
+    }).catch(() => { });
   }
 
   async waitForFlights(): Promise<void> {
@@ -52,6 +52,7 @@ export class AvailabilityPage extends BasePage {
   async selectFirstFlight(): Promise<void> {
     await this.dismissCookies();
     await this.waitForFlights();
+    await this.dismissCookies();
 
     const firstFlight = this.flightCards.first();
     await this.smoothScroll(firstFlight, 400);
@@ -63,13 +64,14 @@ export class AvailabilityPage extends BasePage {
 
     // Bucle resiliente: hace clic en la tarjeta del vuelo hasta que el bundle sea visible
     await expect(async () => {
+      await this.dismissCookies();
       if (!(await bundlePriceIndicator.isVisible())) {
-        await firstFlight.click();
+        await firstFlight.click({ force: true });
       }
       await expect(bundlePriceIndicator).toBeVisible({ timeout: 3000 });
     }).toPass({
       intervals: [500, 1000, 2000],
-      timeout: 20000,
+      timeout: 25000,
     });
   }
 

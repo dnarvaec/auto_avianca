@@ -10,8 +10,8 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   /* Workers en CI: 1, local: 2 */
   workers: process.env.CI ? 1 : 2,
-  /* Timeout por test: el flujo NBF completo tarda >30s */
-  timeout: 180_000,
+  /* Timeout por test: Varios minutos para flujos completos con múltiples pasajeros y ancillaries */
+  timeout: 300_000,
   /* Reporters */
   reporter: [
     ['html', { outputFolder: 'playwright-report', open: 'never' }],

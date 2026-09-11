@@ -105,39 +105,49 @@ export class AncillariesPage extends BasePage {
   // ─── Ancillaries Específicas ───────────────────────────────────────────────
 
   /**
-   * Selección inteligente de asiento en el mapa interactivo
+   * Selección y guardado de asiento con confirmación de popover y footer
    */
   private async selectSeat(): Promise<void> {
     const opened = await this.openAncillaryCard('SEAT', ['Choose your seat', 'Seat', 'Asiento']);
     if (!opened) return;
 
-    // 1. Esperar a que el contenedor del mapa de asientos cargue
-    const seatMapContainer = this.page.locator(
+    // 1. Esperar mapa de asientos
+    const seatMap = this.page.locator(
       'seat-map, app-seatmap, .seat-map-container, mat-dialog-container, [data-testid*="seatmap"], .seat-map'
     ).first();
-    await seatMapContainer.waitFor({ state: 'visible', timeout: 8000 }).catch(() => { });
+    await seatMap.waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
+    await this.page.waitForTimeout(800);
 
-    // 2. Buscar el primer asiento libre disponible
+    // 2. Localizar y hacer clic en el primer asiento disponible
     const availableSeat = this.page.locator(
-      'button.seat--available, button.seat-available, [data-testid*="seat-item"]:not([disabled]), button[aria-label*="Seat" i]:not([disabled]), button[aria-label*="Asiento" i]:not([disabled]), button.seat:not(.seat--occupied):not(.seat--disabled):not([disabled])'
+      'button.seat--available, button.seat-available, button[data-testid*="seat-item"]:not([disabled]), button[aria-label*="Seat" i]:not([disabled]), button[aria-label*="Asiento" i]:not([disabled]), button.seat:not(.seat--occupied):not(.seat--disabled):not([disabled])'
     ).first();
 
-    if (await availableSeat.waitFor({ state: 'visible', timeout: 6000 }).then(() => true).catch(() => false)) {
-      await this.smoothScroll(availableSeat, 250);
+    if (await availableSeat.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) {
+      await this.smoothScroll(availableSeat, 300);
       await availableSeat.click({ force: true });
-      await this.page.waitForTimeout(400);
+      await this.page.waitForTimeout(500);
+
+      // Si aparece popover individual ("Select seat" / "Seleccionar asiento")
+      const popoverSelectBtn = this.page.locator(
+        '.seat-popover button, .seat-tooltip button, button:has-text("Select seat"), button:has-text("Seleccionar asiento"), button:has-text("Add seat")'
+      ).first();
+      if (await popoverSelectBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await popoverSelectBtn.click({ force: true });
+        await this.page.waitForTimeout(400);
+      }
     }
 
-    // 3. Confirmar y guardar el asiento en el mapa
+    // 3. Confirmar y guardar el asiento en el botón principal
     const saveSeatBtn = this.page.locator(
-      'button[data-testid*="seatmap-save"], button[data-testid*="confirm"], button.btn-primary-black, button:has-text("Save and exit"), button:has-text("Guardar y salir"), button:has-text("Confirm"), button:has-text("Confirmar")'
+      'button[data-testid*="seatmap-save"], button[data-testid*="seat-map-confirm"], button[data-testid*="confirm"], button.seatmap-footer__confirm, button.btn-primary-black, button:has-text("Save and exit"), button:has-text("Guardar y salir"), button:has-text("Save and continue"), button:has-text("Save"), button:has-text("Guardar"), button:has-text("Confirm"), button:has-text("Confirmar")'
     ).and(this.page.locator(':visible')).first();
 
-    if (await saveSeatBtn.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false)) {
+    if (await saveSeatBtn.waitFor({ state: 'visible', timeout: 6000 }).then(() => true).catch(() => false)) {
       await this.smoothScroll(saveSeatBtn, 300);
       await saveSeatBtn.click({ force: true });
-      // Esperar que el modal de asientos se cierre
-      await this.page.locator('.cdk-overlay-backdrop, mat-dialog-container').first().waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { });
+      // Esperar que el modal cierre
+      await this.page.locator('.cdk-overlay-backdrop, mat-dialog-container, seat-map').first().waitFor({ state: 'hidden', timeout: 6000 }).catch(() => { });
     }
 
     await this.waitForPage();

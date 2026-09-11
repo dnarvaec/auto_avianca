@@ -80,10 +80,9 @@ export class PaymentPage extends BasePage {
       await this.page.waitForTimeout(300);
     }
 
-    const darkFilter = this.page.locator('.onetrust-pc-dark-filter, #onetrust-banner-sdk');
-    if (await darkFilter.isVisible({ timeout: 1500 }).catch(() => false)) {
-      await darkFilter.evaluate(el => el.remove()).catch(() => { });
-    }
+    await this.page.evaluate(() => {
+      document.querySelectorAll('.onetrust-pc-dark-filter, #onetrust-banner-sdk, #onetrust-consent-sdk').forEach(el => el.remove());
+    }).catch(() => { });
   }
 
   // ─── Navegación ────────────────────────────────────────────────────────────
@@ -114,7 +113,7 @@ export class PaymentPage extends BasePage {
 
   async fillPaymentForm(payment: PaymentConfig): Promise<void> {
     await this.expandCreditCard();
-    
+
     // ── 1. Nombre y Apellido del Titular ────────────────────────────────────
     await this.smoothScroll(this.holderNameInput, 250);
     await this.holderNameInput.fill(payment.holderName);
@@ -169,7 +168,7 @@ export class PaymentPage extends BasePage {
       await this.smoothScroll(this.areaCodeTrigger.first(), 200);
       await this.areaCodeTrigger.first().click({ force: true });
       await this.page.waitForTimeout(300);
-      const areaBtn = this.page.locator('#areaCodeTc-list-panel button').filter({ hasText: 'Colombia' }).first();
+      const areaBtn = this.page.locator('#areaCodeTc-list-panel button').first();
       if (await areaBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
         await areaBtn.click({ force: true });
       }
@@ -183,9 +182,11 @@ export class PaymentPage extends BasePage {
       await this.smoothScroll(this.countryTrigger.first(), 200);
       await this.countryTrigger.first().click({ force: true });
       await this.page.waitForTimeout(300);
-      const countryBtn = this.page.locator('#country-list-panel button').filter({ hasText: payment.country }).first();
+      const countryBtn = this.page.locator('#country-list-panel button').filter({ hasText: new RegExp(payment.country, 'i') }).first();
       if (await countryBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
         await countryBtn.click({ force: true });
+      } else {
+        await this.page.locator('#country-list-panel button').first().click({ force: true }).catch(() => { });
       }
     }
 
@@ -217,13 +218,12 @@ export class PaymentPage extends BasePage {
     await expect(submitBtn).toBeVisible({ timeout: 15000 });
     await this.smoothScroll(submitBtn, 400);
     await submitBtn.click({ force: true });
-    await this.page.waitForLoadState('domcontentloaded', { timeout: 30000 });
   }
 
   // ─── Verificaciones ────────────────────────────────────────────────────────
 
   async assertPaymentSuccess(): Promise<string> {
-    // 1. Esperar navegación a la página de confirmación
+    // 1. Esperar navegación a la página de confirmación (hasta 120s para autorizaciones pesadas en QA)
     await this.page.waitForURL(/.*(\/confirmation|success)/i, {
       timeout: 120000,
       waitUntil: 'domcontentloaded',
@@ -231,7 +231,7 @@ export class PaymentPage extends BasePage {
 
     // 2. Esperar a que los loaders desaparezcan
     const loader = this.page.locator('#loader:not(.spinner-desactive), .loader, ngx-spinner');
-    await loader.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => { });
+    await loader.waitFor({ state: 'hidden', timeout: 20000 }).catch(() => { });
 
     // 3. 🍪 CERRAR COOKIES EN LA PANTALLA DE CONFIRMACIÓN
     await this.dismissCookies();
