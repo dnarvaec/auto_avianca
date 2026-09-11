@@ -344,31 +344,30 @@ export class TravelersPage extends BasePage {
       const nativeInput = lmCheckbox.locator('input[type="checkbox"]').first();
 
       if (!(await nativeInput.isChecked().catch(() => false))) {
-        await lmCheckbox.click();
+        await lmCheckbox.click({ force: true });
         await this.page.waitForTimeout(400);
       }
 
       // 2. Si existe un dropdown de programa, asegurar Lifemiles (opcional)
       const programSelect = panel.locator('mat-select[formcontrolname="programCode"]').first();
       if (await programSelect.isVisible({ timeout: 1500 }).catch(() => false)) {
-        await programSelect.click();
+        await programSelect.click({ force: true });
         const lmOption = this.page.getByRole('option', { name: /Lifemiles/i }).first();
         if (await lmOption.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await lmOption.click();
+          await lmOption.click({ force: true });
         }
         await this.page.waitForTimeout(200);
       }
 
-      // 3. Llenar el número de LifeMiles con 123456
+      // 3. Llenar el número de LifeMiles directamente sin clic que sea interceptado por el label
       const ffNumberInput = panel.getByTestId('ff-number')
         .or(panel.locator('input[formcontrolname="cardNumber"]'))
         .first();
 
       await expect(ffNumberInput).toBeVisible({ timeout: 5000 });
       await ffNumberInput.scrollIntoViewIfNeeded();
-      await ffNumberInput.click();
-      await ffNumberInput.fill('123456');
-      await this.page.keyboard.press('Tab');
+      await ffNumberInput.fill('123456', { force: true });
+      await ffNumberInput.blur().catch(() => { });
       await this.page.waitForTimeout(200);
     }
   }
