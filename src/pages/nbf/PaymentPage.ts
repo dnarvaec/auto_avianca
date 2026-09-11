@@ -48,12 +48,14 @@ export class PaymentPage extends BasePage {
     this.cardItemContainer = page.locator('#card-item, .payment-method:has(input[value="card"])');
     this.cardMethodRadio = page.locator('input[name="paymentMethod"][value="card"], #card-item input.radio-button');
 
-    // Datos principales
+    // Datos principales (exactos según HTML)
     this.holderNameInput = page.locator('input#firstnameTitular');
     this.holderLastnameInput = page.locator('input#lastnameTitular');
     this.cardNumberInput = page.locator('input#cardNumber');
-    this.expiryMonthTrigger = page.locator('[data-control="expiryMonth"], input#expiryMonth');
-    this.expiryYearTrigger = page.locator('[data-control="expiryYear"], input#expiryYear');
+
+    // Contenedores interactivos del select
+    this.expiryMonthTrigger = page.locator('div.form-field-select[data-control="expiryMonth"]');
+    this.expiryYearTrigger = page.locator('div.form-field-select[data-control="expiryYear"]');
     this.cvvInput = page.locator('input#securityDigits');
 
     // Datos de contacto
@@ -78,7 +80,6 @@ export class PaymentPage extends BasePage {
       await this.page.waitForTimeout(300);
     }
 
-    // Si el filtro oscuro de OneTrust está presente en pantalla, removerlo para que no tape elementos
     const darkFilter = this.page.locator('.onetrust-pc-dark-filter, #onetrust-banner-sdk');
     if (await darkFilter.isVisible({ timeout: 1500 }).catch(() => false)) {
       await darkFilter.evaluate(el => el.remove()).catch(() => { });
@@ -113,42 +114,47 @@ export class PaymentPage extends BasePage {
 
   async fillPaymentForm(payment: PaymentConfig): Promise<void> {
     await this.expandCreditCard();
-
+    
     // ── 1. Nombre y Apellido del Titular ────────────────────────────────────
     await this.holderNameInput.fill(payment.holderName);
     await this.holderLastnameInput.fill(payment.holderLastname);
 
-    // ── 2. Número de Tarjeta ────────────────────────────────────────────────
-    await this.cardNumberInput.fill(payment.cardNumber);
+    // ── 2. Número de Tarjeta (Uso de pressSequentially para activar formateador JS)
+    await this.cardNumberInput.click();
+    await this.cardNumberInput.clear().catch(() => { });
+    await this.cardNumberInput.pressSequentially(payment.cardNumber.replace(/\s+/g, ''), { delay: 35 });
+    await this.cardNumberInput.blur();
 
-    // ── 3. Fecha de Expiración ──────────────────────────────────────────────
+    // ── 3. Fecha de Expiración (Mes y Año) ──────────────────────────────────
     const { month, year } = this.parseExpiry(payment.expiryDate);
-    const mmPadded = month.padStart(2, '0');
+    const mmPadded = month.padStart(2, '0'); // Ej: "01"
+    const yyPadded = year.length === 4 ? year.slice(-2) : year.padStart(2, '0'); // Ej: "28"
 
-    // Mes
-    await this.expiryMonthTrigger.first().click({ force: true });
-    await this.page.waitForTimeout(300);
-    const monthBtn = this.page.locator(`#expiryMonth-list-panel button[data-value="${mmPadded}"], #expiryMonth-list-panel button:has-text("${mmPadded}")`).first();
-    if (await monthBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await monthBtn.click({ force: true });
-    } else {
-      await this.page.getByRole('option', { name: new RegExp(`^${mmPadded}$`) }).first().click({ force: true });
-    }
+    // ── Seleccionar Mes
+    const monthTrigger = this.expiryMonthTrigger.first();
+    await monthTrigger.scrollIntoViewIfNeeded();
+    await monthTrigger.click();
 
-    // Año
-    await this.expiryYearTrigger.first().click({ force: true });
-    await this.page.waitForTimeout(300);
-    const yearBtn = this.page.locator(`#expiryYear-list-panel button[data-value="${year}"], #expiryYear-list-panel button:has-text("${year}")`).first();
-    if (await yearBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await yearBtn.click({ force: true });
-    } else {
-      await this.page.getByRole('option', { name: new RegExp(`^${year}$`) }).first().click({ force: true });
-    }
+    const monthOption = this.page.locator(`#expiryMonth-list-panel button[data-value="${mmPadded}"]`).first();
+    await expect(monthOption).toBeVisible({ timeout: 5000 });
+    await monthOption.click();
+    await this.page.waitForTimeout(200);
 
-    // ── 4. CVV ──────────────────────────────────────────────────────────────
-    await this.cvvInput.fill(payment.cvv);
+    // ── Seleccionar Año
+    const yearTrigger = this.expiryYearTrigger.first();
+    await yearTrigger.scrollIntoViewIfNeeded();
+    await yearTrigger.click();
+
+    const yearOption = this.page.locator(`#expiryYear-list-panel button[data-value="${yyPadded}"]`).first();
+    await expect(yearOption).toBeVisible({ timeout: 5000 });
+    await yearOption.click();
+    await this.page.waitForTimeout(200);
+
+    // ── 4. CVV (Limpieza y escritura controlada) ───────────────────────────
+    await this.cvvInput.click();
+    await this.cvvInput.clear().catch(() => { });
+    await this.cvvInput.pressSequentially(payment.cvv, { delay: 35 });
     await this.cvvInput.blur();
-    await this.page.keyboard.press('Tab');
 
     // ── 5. Datos de Contacto y Facturación ──────────────────────────────────
     await expect(this.emailInput).toBeVisible({ timeout: 10000 });
@@ -233,7 +239,7 @@ export class PaymentPage extends BasePage {
     // 5. Scroll centrado en el PNR y banner
     await this.page.locator('.confirmationBanner, .reservationContainer').first().scrollIntoViewIfNeeded();
 
-    // 6. Espera de 4 segundos para que el video capture la pantalla completa
+    // 6. Espera para capturar el reporte en video
     await this.page.waitForTimeout(6000);
 
     return pnr;
@@ -243,9 +249,11 @@ export class PaymentPage extends BasePage {
 
   private parseExpiry(expiry: string): { month: string; year: string } {
     const [mm, yy] = expiry.split('/');
-    return {
-      month: String(parseInt(mm, 10)),
-      year: yy.trim(),
-    };
+    const month = (mm ?? '01').trim();
+    let year = (yy ?? '28').trim();
+    if (year.length === 4) {
+      year = year.slice(-2);
+    }
+    return { month, year };
   }
 }
