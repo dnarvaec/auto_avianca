@@ -13,10 +13,9 @@ export class AncillariesPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    // Contenedor principal de la sección de ancillaries
     this.ancillariesSection = page.locator('.content--ancillaries, baggage-decision-section, optional-services-container');
 
-    // Radios de decisión condicional / intermitente
+    // Radios de decisión condicional de equipaje
     this.baggageDecisionNo = page.locator(
       'label[for="no-additional-baggage-radio"], label:has(#no-additional-baggage-radio), label:has-text("No, I have what I need"), label:has-text("No necesito")'
     ).first();
@@ -25,10 +24,10 @@ export class AncillariesPage extends BasePage {
       'label[for="additional-baggage-radio"], label:has(#additional-baggage-radio), label:has-text("Yes, I want"), label:has-text("Sí, quiero")'
     ).first();
 
-    // Botón "Go to payment"
-    this.goToPaymentBtn = page.getByRole('button', { name: /Go to payment|Ir a pagar/i })
-      .or(page.locator('#continue-btn-footer-static, #continue-btn-footer, [data-testid*="order-continue-btn-footer"], button.cart-continue-btn'))
-      .first();
+    // Botón "Go to payment" (soporta estático y sticky footer)
+    this.goToPaymentBtn = page.locator(
+      '#continue-btn-footer, #continue-btn-footer-static, [data-testid*="order-continue-btn-footer"], button:has-text("Go to payment"), button:has-text("Ir a pagar")'
+    ).and(page.locator(':visible')).first();
   }
 
   // ─── Navegación ────────────────────────────────────────────────────────────
@@ -39,10 +38,6 @@ export class AncillariesPage extends BasePage {
 
   // ─── Decisión Condicional de Equipaje ──────────────────────────────────────
 
-  /**
-   * Resuelve el bloque intermitente "Do you need more baggage?".
-   * Si no aparece en 3s, continúa hacia las tarjetas de ancillaries.
-   */
   async handleBaggageDecision(needBaggage = false): Promise<void> {
     const targetLabel = needBaggage ? this.baggageDecisionYes : this.baggageDecisionNo;
 
@@ -72,10 +67,10 @@ export class AncillariesPage extends BasePage {
 
     const yes = (v?: string) => String(v ?? '').trim().toLowerCase() === 'si';
 
-    // 1. Resolver decisión inicial de equipaje (si está presente en pantalla)
+    // 1. Resolver decisión inicial de equipaje (si está presente)
     await this.handleBaggageDecision(yes(flags['Equipaje Adic']));
 
-    // 2. Selección de ancillaries según el Excel
+    // 2. Selección de ancillaries según flags del Excel
     if (yes(flags.Asiento)) await this.selectSeat();
     if (yes(flags['Equipaje Adic'])) await this.selectBaggage();
     if (yes(flags['Sala VIP'])) await this.selectVipLounge();
@@ -87,17 +82,18 @@ export class AncillariesPage extends BasePage {
   // ─── Navegación al Pago ────────────────────────────────────────────────────
 
   async goToPayment(): Promise<void> {
-    await expect(this.goToPaymentBtn).toBeVisible({ timeout: 15000 });
-    await this.smoothScroll(this.goToPaymentBtn, 400);
+    const activePaymentBtn = this.goToPaymentBtn;
+    await expect(activePaymentBtn).toBeVisible({ timeout: 15000 });
+    await this.smoothScroll(activePaymentBtn, 500);
 
-    // Bucle resiliente: asegura que el clic active la redirección a la pasarela
+    // Bucle resiliente para disparar la pasarela de pagos
     await expect(async () => {
       const currentUrl = this.page.url();
       if (/.*(abracheckout|sdkqa|\/pay|\/checkout|\/payment)/i.test(currentUrl)) {
         return;
       }
-      if (await this.goToPaymentBtn.isVisible()) {
-        await this.goToPaymentBtn.click();
+      if (await activePaymentBtn.isVisible()) {
+        await activePaymentBtn.click({ force: true });
       }
       await this.page.waitForURL(/.*(abracheckout|sdkqa|\/pay|\/checkout|\/payment)/i, { timeout: 4000 });
     }).toPass({
@@ -108,21 +104,42 @@ export class AncillariesPage extends BasePage {
 
   // ─── Ancillaries Específicas ───────────────────────────────────────────────
 
+  /**
+   * Selección inteligente de asiento en el mapa interactivo
+   */
   private async selectSeat(): Promise<void> {
-    const opened = await this.openAncillaryCard('SEAT', ['Seat', 'Asiento']);
+    const opened = await this.openAncillaryCard('SEAT', ['Choose your seat', 'Seat', 'Asiento']);
     if (!opened) return;
 
-    const availableSeat = this.page.getByRole('button', { name: /Seat number/i }).first();
-    if (await availableSeat.isVisible({ timeout: 6000 }).catch(() => false)) {
-      await this.smoothScroll(availableSeat, 300);
-      await availableSeat.click();
-      await this.page.waitForTimeout(300);
+    // 1. Esperar a que el contenedor del mapa de asientos cargue
+    const seatMapContainer = this.page.locator(
+      'seat-map, app-seatmap, .seat-map-container, mat-dialog-container, [data-testid*="seatmap"], .seat-map'
+    ).first();
+    await seatMapContainer.waitFor({ state: 'visible', timeout: 8000 }).catch(() => { });
+
+    // 2. Buscar el primer asiento libre disponible
+    const availableSeat = this.page.locator(
+      'button.seat--available, button.seat-available, [data-testid*="seat-item"]:not([disabled]), button[aria-label*="Seat" i]:not([disabled]), button[aria-label*="Asiento" i]:not([disabled]), button.seat:not(.seat--occupied):not(.seat--disabled):not([disabled])'
+    ).first();
+
+    if (await availableSeat.waitFor({ state: 'visible', timeout: 6000 }).then(() => true).catch(() => false)) {
+      await this.smoothScroll(availableSeat, 250);
+      await availableSeat.click({ force: true });
+      await this.page.waitForTimeout(400);
     }
-    const saveBtn = this.page.getByRole('button', { name: /Save and exit|Guardar y salir|Confirm/i }).first();
-    if (await saveBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await this.smoothScroll(saveBtn, 300);
-      await saveBtn.click();
+
+    // 3. Confirmar y guardar el asiento en el mapa
+    const saveSeatBtn = this.page.locator(
+      'button[data-testid*="seatmap-save"], button[data-testid*="confirm"], button.btn-primary-black, button:has-text("Save and exit"), button:has-text("Guardar y salir"), button:has-text("Confirm"), button:has-text("Confirmar")'
+    ).and(this.page.locator(':visible')).first();
+
+    if (await saveSeatBtn.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false)) {
+      await this.smoothScroll(saveSeatBtn, 300);
+      await saveSeatBtn.click({ force: true });
+      // Esperar que el modal de asientos se cierre
+      await this.page.locator('.cdk-overlay-backdrop, mat-dialog-container').first().waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { });
     }
+
     await this.waitForPage();
   }
 
@@ -130,37 +147,37 @@ export class AncillariesPage extends BasePage {
     const opened = await this.openAncillaryCard('BAG', ['Additional baggage', 'Equipaje adicional']);
     if (!opened) return;
 
-    // 1. Esperar que el diálogo/modal abra rápido
     const modal = this.page.locator('mat-dialog-container, .modal-content, [role="dialog"]').first();
     await modal.waitFor({ state: 'visible', timeout: 4000 }).catch(() => { });
 
-    // 2. Buscar únicamente el primer botón de '+' que esté habilitado y visible
     const increaseBtn = this.page.getByRole('button', { name: /Increase number of bags|Aumentar/i })
       .or(this.page.locator('button.btn-quantity--plus, button[aria-label*="increase" i], button[data-testid*="increase"]'))
       .first();
 
-    // Clic con timeout corto (máximo 2s) para no congelar el flujo
     if (await increaseBtn.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)) {
       await this.smoothScroll(increaseBtn, 200);
       await increaseBtn.click({ timeout: 2000 }).catch(() => { });
       await this.page.waitForTimeout(300);
     }
 
-    // 3. Confirmar y cerrar modal
     await this.confirmAncillaryModal();
     await this.waitForPage();
   }
 
   private async selectVipLounge(): Promise<void> {
-    const opened = await this.openAncillaryCard('VIPD', ['VIP Lounge', 'Sala VIP']);
+    const opened = await this.openAncillaryCard('VIPD', ['avianca VIP lounges', 'VIP Lounge', 'Sala VIP']);
     if (!opened) return;
 
-    const selectAll = this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i }).first();
-    if (await selectAll.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const selectAll = this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i })
+      .or(this.page.locator('mat-checkbox.select-all, mat-checkbox:has-text("Select all")'))
+      .first();
+
+    if (await selectAll.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)) {
       await this.smoothScroll(selectAll, 250);
-      await selectAll.check();
+      await selectAll.check().catch(() => selectAll.click({ force: true }));
       await this.page.waitForTimeout(300);
     }
+
     await this.confirmAncillaryModal();
     await this.waitForPage();
   }
@@ -178,6 +195,7 @@ export class AncillariesPage extends BasePage {
       await this.page.waitForTimeout(200);
       idx++;
     }
+
     await this.confirmAncillaryModal();
     await this.waitForPage();
   }
@@ -194,30 +212,28 @@ export class AncillariesPage extends BasePage {
     const opened = await this.openAncillaryCard('PBRD', ['Priority boarding', 'Abordaje prioritario']);
     if (!opened) return;
 
-    const selectAll = this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i }).first();
-    if (await selectAll.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const selectAll = this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i })
+      .or(this.page.locator('mat-checkbox.select-all, mat-checkbox:has-text("Select all")'))
+      .first();
+
+    if (await selectAll.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)) {
       await this.smoothScroll(selectAll, 250);
-      await selectAll.check();
+      await selectAll.check().catch(() => selectAll.click({ force: true }));
       await this.page.waitForTimeout(300);
     }
+
     await this.confirmAncillaryModal();
     await this.waitForPage();
   }
 
   // ─── Helpers Privados ──────────────────────────────────────────────────────
 
-  /**
-   * Abre la tarjeta buscando por clase de icono (.BAG, .SEAT, etc.) o por título de servicio.
-   * Espera hasta 10 segundos para dar tiempo a la respuesta del backend.
-   */
   private async openAncillaryCard(cardCode: string, fallbackTitles: string[] = []): Promise<boolean> {
-    // Construir selector que busque tanto por clase de imagen como por el texto del título
     const titleSelectors = fallbackTitles.map(t => `mat-card:has(.title:has-text("${t}"))`).join(', ');
     const cardLocatorStr = `mat-card:has(.img-container.${cardCode}), mat-card:has([class*="${cardCode}"])${titleSelectors ? `, ${titleSelectors}` : ''}`;
 
     const card = this.page.locator(cardLocatorStr).first();
 
-    // Esperar hasta 10s a que el backend cargue el servicio en el DOM
     const isVisible = await card
       .waitFor({ state: 'visible', timeout: 10000 })
       .then(() => true)
@@ -237,13 +253,13 @@ export class AncillariesPage extends BasePage {
   private async confirmAncillaryModal(): Promise<void> {
     const confirmBtn = this.page.getByRole('button', { name: /Confirm|Save|Guardar|Continuar/i })
       .or(this.page.getByTestId('nbf-button'))
+      .and(this.page.locator(':visible'))
       .first();
 
     const isReady = await confirmBtn.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
     if (isReady) {
       await this.smoothScroll(confirmBtn, 300);
       await confirmBtn.click({ force: true });
-      // Esperar a que el backdrop/overlay del modal desaparezca
       await this.page.locator('.cdk-overlay-backdrop, mat-dialog-container').first().waitFor({ state: 'hidden', timeout: 4000 }).catch(() => { });
     }
   }
