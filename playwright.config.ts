@@ -19,7 +19,7 @@ export default defineConfig({
   ],
   use: {
     trace: 'off',
-    screenshot: 'on',
+    screenshot: 'off',
     video: 'on',
     /* Viewport estándar desktop */
     viewport: { width: 1280, height: 720 },

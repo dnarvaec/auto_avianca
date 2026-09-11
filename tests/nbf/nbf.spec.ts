@@ -1,6 +1,5 @@
 import { test } from '../../src/fixtures/test.fixture';
 import { ExcelReader } from '../../src/helpers/ExcelReader';
-import { step } from '../../src/helpers/step.helper';
 import { URLS, PAYMENT } from '../../src/config/environment';
 import { AvailabilityPage } from '../../src/pages/nbf/AvailabilityPage';
 import { TripSummaryPage } from '../../src/pages/nbf/TripSummaryPage';
@@ -114,8 +113,6 @@ function buildNbfUrl(baseUrl: string, tc: NbfCaseData): string {
 
 /**
  * Ejecuta un caso NBF completo end-to-end.
- * Cada fase usa step() que adjunta un screenshot automatico al reporte HTML.
- * El reporte mostrara 5 screenshots por caso de prueba.
  */
 async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<void> {
   const availPage = new AvailabilityPage(page);
@@ -127,7 +124,7 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   // 1/N: Seleccion de vuelo y bundle -----------------------------------------
   // La URL se construye dinamicamente con los pasajeros del caso (na/nj/nn/ni)
   const nbfUrl = buildNbfUrl(url, tc);
-  await step(page, '1 -- Vuelo + Bundle', async () => {
+  await test.step('1 -- Vuelo + Bundle', async () => {
     await page.goto(nbfUrl);
     await availPage.selectFirstFlight();
     await availPage.selectBundle(String(tc.Bundle));
@@ -138,7 +135,7 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   // 2/N: Datos de todos los pasajeros + Booking holder -----------------------
   // fillAllPassengers gestiona dinamicamente Adult 1 (Excel) + Adult 2+,
   // Youngs, Children e Infants (datos genericos con edad correcta).
-  await step(page, '2 -- Pasajero(s) + Booking holder', async () => {
+  await test.step('2 -- Pasajero(s) + Booking holder', async () => {
     await travelersPage.fillAllPassengers(tc);
     await travelersPage.fillBookingHolder(
       String(tc.Telefono),
@@ -147,7 +144,7 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   });
 
   // 3/N: Generacion de PNR y ancillaries ------------------------------------
-  await step(page, '3 -- Ancillaries (genera PNR)', async () => {
+  await test.step('3 -- Ancillaries (genera PNR)', async () => {
     await travelersPage.continue();
     await ancillariesPage.waitForPage();
     await ancillariesPage.handleAncillaries({
@@ -161,14 +158,14 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   });
 
   // 4/N: Formulario de pago con tarjeta ------------------------------------
-  await step(page, '4 -- Formulario de pago', async () => {
+  await test.step('4 -- Formulario de pago', async () => {
     await ancillariesPage.goToPayment();
     await paymentPage.waitForPage();
     await paymentPage.fillPaymentForm(PAYMENT);
   });
 
   // 5/N: Confirmar pago y verificar éxito ------------------------------------
-  await step(page, '5 -- Confirmacion de pago', async () => {
+  await test.step('5 -- Confirmacion de pago', async () => {
     await paymentPage.submitPayment();
     const pnr = await paymentPage.assertPaymentSuccess();
 
