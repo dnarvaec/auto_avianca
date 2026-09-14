@@ -6,6 +6,7 @@ import { TripSummaryPage } from '../../src/pages/nbf/TripSummaryPage';
 import { TravelersPage } from '../../src/pages/nbf/TravelersPage';
 import { AncillariesPage } from '../../src/pages/nbf/AncillariesPage';
 import { PaymentPage } from '../../src/pages/nbf/PaymentPage';
+import { ConfirmationPage } from '../../src/pages/nbf/ConfirmationPage';
 import type { NbfCaseData } from '../../src/types';
 import type { Page } from '@playwright/test';
 
@@ -120,6 +121,7 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   const travelersPage = new TravelersPage(page);
   const ancillariesPage = new AncillariesPage(page);
   const paymentPage = new PaymentPage(page);
+  const confirmationPage = new ConfirmationPage(page);
 
   // 1/N: Seleccion de vuelo y bundle -----------------------------------------
   // La URL se construye dinamicamente con los pasajeros del caso (na/nj/nn/ni)
@@ -167,7 +169,7 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   // 5/N: Confirmar pago y verificar éxito ------------------------------------
   await test.step('5 -- Confirmacion de pago', async () => {
     await paymentPage.submitPayment();
-    const pnr = await paymentPage.assertPaymentSuccess();
+    const pnr = await confirmationPage.assertPaymentSuccess();
 
     // Registrar PNR en las anotaciones del reporte
     test.info().annotations.push({ type: 'Booking Code (PNR)', description: pnr });

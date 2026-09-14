@@ -105,49 +105,40 @@ export class AncillariesPage extends BasePage {
   // ─── Ancillaries Específicas ───────────────────────────────────────────────
 
   /**
-   * Selección y guardado de asiento con confirmación de popover y footer
+   * Selección y guardado de asiento en el mapa interactivo (divs de gridcell)
    */
   private async selectSeat(): Promise<void> {
     const opened = await this.openAncillaryCard('SEAT', ['Choose your seat', 'Seat', 'Asiento']);
     if (!opened) return;
 
-    // 1. Esperar mapa de asientos
-    const seatMap = this.page.locator(
-      'seat-map, app-seatmap, .seat-map-container, mat-dialog-container, [data-testid*="seatmap"], .seat-map'
+    // 1. Esperar que el modal/mapa de asientos cargue
+    const seatMapModal = this.page.locator(
+      'optional-service-modal-layout, seatmap-grid, .seatmap-container, mat-dialog-container'
     ).first();
-    await seatMap.waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
+    await seatMapModal.waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
     await this.page.waitForTimeout(800);
 
-    // 2. Localizar y hacer clic en el primer asiento disponible
+    // 2. Localizar el primer asiento disponible (div role="gridcell" con aria-label "available")
     const availableSeat = this.page.locator(
-      'button.seat--available, button.seat-available, button[data-testid*="seat-item"]:not([disabled]), button[aria-label*="Seat" i]:not([disabled]), button[aria-label*="Asiento" i]:not([disabled]), button.seat:not(.seat--occupied):not(.seat--disabled):not([disabled])'
+      '.cell--seat[aria-label*="available" i]:not([aria-disabled="true"]):not([aria-selected="true"]), [role="gridcell"][aria-label*="available" i]:not([aria-disabled="true"]):not([aria-selected="true"]), .cell--seat[aria-label*="disponible" i]:not([aria-disabled="true"])'
     ).first();
 
     if (await availableSeat.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) {
       await this.smoothScroll(availableSeat, 300);
       await availableSeat.click({ force: true });
       await this.page.waitForTimeout(500);
-
-      // Si aparece popover individual ("Select seat" / "Seleccionar asiento")
-      const popoverSelectBtn = this.page.locator(
-        '.seat-popover button, .seat-tooltip button, button:has-text("Select seat"), button:has-text("Seleccionar asiento"), button:has-text("Add seat")'
-      ).first();
-      if (await popoverSelectBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await popoverSelectBtn.click({ force: true });
-        await this.page.waitForTimeout(400);
-      }
     }
 
-    // 3. Confirmar y guardar el asiento en el botón principal
-    const saveSeatBtn = this.page.locator(
-      'button[data-testid*="seatmap-save"], button[data-testid*="seat-map-confirm"], button[data-testid*="confirm"], button.seatmap-footer__confirm, button.btn-primary-black, button:has-text("Save and exit"), button:has-text("Guardar y salir"), button:has-text("Save and continue"), button:has-text("Save"), button:has-text("Guardar"), button:has-text("Confirm"), button:has-text("Confirmar")'
+    // 3. Confirmar y guardar asiento en el botón primario del footer ("Confirm selection")
+    const confirmSeatBtn = this.page.locator(
+      'button.nbf-btn--primary:has-text("Confirm selection"), button:has-text("Confirm selection"), button:has-text("Confirmar selección"), button:has-text("Save and exit"), button:has-text("Guardar y salir"), button:has-text("Confirm"), button:has-text("Confirmar")'
     ).and(this.page.locator(':visible')).first();
 
-    if (await saveSeatBtn.waitFor({ state: 'visible', timeout: 6000 }).then(() => true).catch(() => false)) {
-      await this.smoothScroll(saveSeatBtn, 300);
-      await saveSeatBtn.click({ force: true });
-      // Esperar que el modal cierre
-      await this.page.locator('.cdk-overlay-backdrop, mat-dialog-container, seat-map').first().waitFor({ state: 'hidden', timeout: 6000 }).catch(() => { });
+    if (await confirmSeatBtn.waitFor({ state: 'visible', timeout: 6000 }).then(() => true).catch(() => false)) {
+      await this.smoothScroll(confirmSeatBtn, 300);
+      await confirmSeatBtn.click({ force: true });
+      // Esperar que el modal de asientos cierre
+      await this.page.locator('optional-service-modal-layout, mat-dialog-container, .cdk-overlay-backdrop').first().waitFor({ state: 'hidden', timeout: 6000 }).catch(() => { });
     }
 
     await this.waitForPage();
@@ -178,14 +169,17 @@ export class AncillariesPage extends BasePage {
     const opened = await this.openAncillaryCard('VIPD', ['avianca VIP lounges', 'VIP Lounge', 'Sala VIP']);
     if (!opened) return;
 
-    const selectAll = this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i })
-      .or(this.page.locator('mat-checkbox.select-all, mat-checkbox:has-text("Select all")'))
+    const selectAll = this.page.locator('mat-checkbox:has-text("Select all"), mat-checkbox:has-text("Seleccionar todos"), mat-checkbox.select-all')
+      .or(this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i }))
       .first();
 
     if (await selectAll.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)) {
       await this.smoothScroll(selectAll, 250);
-      await selectAll.check().catch(() => selectAll.click({ force: true }));
-      await this.page.waitForTimeout(300);
+      const nativeInput = selectAll.locator('input[type="checkbox"]').first();
+      if (!(await nativeInput.isChecked().catch(() => false))) {
+        await selectAll.click({ force: true });
+        await this.page.waitForTimeout(300);
+      }
     }
 
     await this.confirmAncillaryModal();
@@ -222,14 +216,17 @@ export class AncillariesPage extends BasePage {
     const opened = await this.openAncillaryCard('PBRD', ['Priority boarding', 'Abordaje prioritario']);
     if (!opened) return;
 
-    const selectAll = this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i })
-      .or(this.page.locator('mat-checkbox.select-all, mat-checkbox:has-text("Select all")'))
+    const selectAll = this.page.locator('mat-checkbox:has-text("Select all"), mat-checkbox:has-text("Seleccionar todos"), mat-checkbox.select-all')
+      .or(this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i }))
       .first();
 
     if (await selectAll.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)) {
       await this.smoothScroll(selectAll, 250);
-      await selectAll.check().catch(() => selectAll.click({ force: true }));
-      await this.page.waitForTimeout(300);
+      const nativeInput = selectAll.locator('input[type="checkbox"]').first();
+      if (!(await nativeInput.isChecked().catch(() => false))) {
+        await selectAll.click({ force: true });
+        await this.page.waitForTimeout(300);
+      }
     }
 
     await this.confirmAncillaryModal();

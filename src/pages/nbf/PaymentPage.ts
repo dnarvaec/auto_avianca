@@ -220,43 +220,6 @@ export class PaymentPage extends BasePage {
     await submitBtn.click({ force: true });
   }
 
-  // ─── Verificaciones ────────────────────────────────────────────────────────
-
-  async assertPaymentSuccess(): Promise<string> {
-    // 1. Esperar navegación a la página de confirmación (hasta 120s para autorizaciones pesadas en QA)
-    await this.page.waitForURL(/.*(\/confirmation|success)/i, {
-      timeout: 120000,
-      waitUntil: 'domcontentloaded',
-    });
-
-    // 2. Esperar a que los loaders desaparezcan
-    const loader = this.page.locator('#loader:not(.spinner-desactive), .loader, ngx-spinner');
-    await loader.waitFor({ state: 'hidden', timeout: 20000 }).catch(() => { });
-
-    // 3. 🍪 CERRAR COOKIES EN LA PANTALLA DE CONFIRMACIÓN
-    await this.dismissCookies();
-
-    // 4. Validar el título y código de reserva (PNR: .reservationCode strong)
-    const bookingCodeLocator = this.page.locator('.reservationCode strong, [class*="reservationCode"] strong').first();
-    await expect(bookingCodeLocator).toBeVisible({ timeout: 25000 });
-
-    const pnr = (await bookingCodeLocator.innerText()).trim();
-    console.log(`\n========================================`);
-    console.log(`🎉 ¡COMPRA EXITOSA! PNR / Booking Code: ${pnr}`);
-    console.log(`========================================\n`);
-
-    // 5. Scroll centrado en el PNR y banner
-    const banner = this.page.locator('.confirmationBanner, .reservationContainer').first();
-    if (await banner.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await this.smoothScroll(banner, 500);
-    }
-
-    // 6. Espera para capturar el reporte en video
-    await this.page.waitForTimeout(6000);
-
-    return pnr;
-  }
-
   // ─── Helpers privados ─────────────────────────────────────────────────────
 
   private parseExpiry(expiry: string): { month: string; year: string } {
