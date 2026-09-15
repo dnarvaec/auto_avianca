@@ -216,15 +216,16 @@ export class AncillariesPage extends BasePage {
     const opened = await this.openAncillaryCard('PBRD', ['Priority boarding', 'Abordaje prioritario']);
     if (!opened) return;
 
-    const selectAll = this.page.locator('mat-checkbox:has-text("Select all"), mat-checkbox:has-text("Seleccionar todos"), mat-checkbox.select-all')
-      .or(this.page.getByRole('checkbox', { name: /Select all passengers|Seleccionar todos/i }))
-      .first();
+    // Seleccionar únicamente la casilla del primer pasajero (data-index="0")
+    const firstPaxCheckbox = this.page.locator(
+      'li.passenger-selector__item[data-index="0"] mat-checkbox, .passenger-selector__list li mat-checkbox, .passenger-selector__list mat-checkbox'
+    ).first();
 
-    if (await selectAll.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)) {
-      await this.smoothScroll(selectAll, 250);
-      const nativeInput = selectAll.locator('input[type="checkbox"]').first();
+    if (await firstPaxCheckbox.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false)) {
+      await this.smoothScroll(firstPaxCheckbox, 250);
+      const nativeInput = firstPaxCheckbox.locator('input[type="checkbox"]').first();
       if (!(await nativeInput.isChecked().catch(() => false))) {
-        await selectAll.click({ force: true });
+        await firstPaxCheckbox.click({ force: true });
         await this.page.waitForTimeout(300);
       }
     }
