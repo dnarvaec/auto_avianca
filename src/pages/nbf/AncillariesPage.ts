@@ -138,7 +138,7 @@ export class AncillariesPage extends BasePage {
       await this.smoothScroll(confirmSeatBtn, 300);
       await confirmSeatBtn.click({ force: true });
       // Esperar que el modal de asientos cierre
-      await this.page.locator('optional-service-modal-layout, mat-dialog-container, .cdk-overlay-backdrop').first().waitFor({ state: 'hidden', timeout: 6000 }).catch(() => { });
+      await this.page.locator('optional-service-modal-layout, mat-dialog-container, .cdk-overlay-backdrop').first().waitFor({ state: 'hidden', timeout: 10000 }).catch(() => { });
     }
 
     await this.waitForPage();
@@ -267,7 +267,7 @@ export class AncillariesPage extends BasePage {
     if (isReady) {
       await this.smoothScroll(confirmBtn, 300);
       await confirmBtn.click({ force: true });
-      await this.page.locator('.cdk-overlay-backdrop, mat-dialog-container').first().waitFor({ state: 'hidden', timeout: 4000 }).catch(() => { });
+      await this.page.locator('.cdk-overlay-backdrop, mat-dialog-container').first().waitFor({ state: 'hidden', timeout: 10000 }).catch(() => { });
     }
   }
 }
