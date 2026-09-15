@@ -47,26 +47,30 @@ export class AvailabilityPage extends BasePage {
   // ─── Acciones ──────────────────────────────────────────────────────────────
 
   /**
-   * Selecciona el primer vuelo disponible y asegura la apertura de los bundles.
+   * Selecciona el sexto vuelo disponible (índice 5) y asegura la apertura de los bundles.
    */
   async selectFirstFlight(): Promise<void> {
     await this.dismissCookies();
     await this.waitForFlights();
     await this.dismissCookies();
 
-    const firstFlight = this.flightCards.first();
-    await this.smoothScroll(firstFlight, 400);
+    // Seleccionar el 6to vuelo disponible (índice 5 en base 0) o el último si hay menos
+    const count = await this.flightCards.count();
+    const targetFlight = count >= 6 ? this.flightCards.nth(5) : this.flightCards.last();
+
+    await this.smoothScroll(targetFlight, 500);
 
     // Indicador exacto de que el panel de bundles se abrió
     const bundlePriceIndicator = this.page
       .locator('button.ff-price-container, [data-testid*="ff-price-container"]')
       .first();
 
-    // Bucle resiliente: hace clic en la tarjeta del vuelo hasta que el bundle sea visible
+    // Bucle resiliente: hace clic en el 6to vuelo hasta que el bundle sea visible
     await expect(async () => {
       await this.dismissCookies();
       if (!(await bundlePriceIndicator.isVisible())) {
-        await firstFlight.click({ force: true });
+        await targetFlight.scrollIntoViewIfNeeded();
+        await targetFlight.click({ force: true });
       }
       await expect(bundlePriceIndicator).toBeVisible({ timeout: 3000 });
     }).toPass({
