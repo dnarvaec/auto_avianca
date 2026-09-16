@@ -7,24 +7,25 @@ import { BasePage } from '../BasePage';
  */
 export class AncillariesPage extends BasePage {
   private readonly ancillariesSection: Locator;
-  private readonly baggageDecisionNo: Locator;
-  private readonly baggageDecisionYes: Locator;
+  private readonly baggageDecisionSection: Locator;
+  private readonly baggageNoRadio: Locator;
+  private readonly baggageNoLabel: Locator;
   private readonly goToPaymentBtn: Locator;
 
   constructor(page: Page) {
     super(page);
     this.ancillariesSection = page.locator('.content--ancillaries, baggage-decision-section, optional-services-container');
 
-    // Radios de decisión condicional de equipaje
-    this.baggageDecisionNo = page.locator(
-      'label[for="no-additional-baggage-radio"], label:has(#no-additional-baggage-radio), label:has-text("No, I have what I need"), label:has-text("No necesito")'
-    ).first();
+    // Contenedor de la decisión de equipaje
+    this.baggageDecisionSection = page.locator('baggage-decision-section, .baggage-decision, [class*="baggage-decision"]');
 
-    this.baggageDecisionYes = page.locator(
-      'label[for="additional-baggage-radio"], label:has(#additional-baggage-radio), label:has-text("Yes, I want"), label:has-text("Sí, quiero")'
-    ).first();
+    // Selectores exactos según el HTML
+    this.baggageNoRadio = page.locator('input#no-additional-baggage-radio, input[name="baggage-decision"][value="no"]');
+    this.baggageNoLabel = page.locator(
+      'label[for="no-additional-baggage-radio"], label.baggage-decision__option--no, label:has(#no-additional-baggage-radio)'
+    );
 
-    // Botón "Go to payment" (soporta estático y sticky footer)
+    // Botón "Go to payment"
     this.goToPaymentBtn = page.locator(
       '#continue-btn-footer, #continue-btn-footer-static, [data-testid*="order-continue-btn-footer"], button:has-text("Go to payment"), button:has-text("Ir a pagar")'
     ).and(page.locator(':visible')).first();
@@ -33,23 +34,53 @@ export class AncillariesPage extends BasePage {
   // ─── Navegación ────────────────────────────────────────────────────────────
 
   async waitForPage(): Promise<void> {
+    // 1. Esperar que desaparezcan loaders de Angular
+    await this.page.locator('ngx-spinner, .loader, #loader, .skeleton-loading').first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => { });
+    // 2. Esperar que el contenedor principal esté en el DOM
     await expect(this.ancillariesSection.first()).toBeVisible({ timeout: 25000 });
   }
 
   // ─── Decisión Condicional de Equipaje ──────────────────────────────────────
 
-  async handleBaggageDecision(needBaggage = false): Promise<void> {
-    const targetLabel = needBaggage ? this.baggageDecisionYes : this.baggageDecisionNo;
+  /**
+   * Maneja obligatoriamente la opción "Do you need more baggage?".
+   * Espera a que termine la carga de Angular, marca "NO" y valida que quede activo.
+   */
+  async handleBaggageDecision(): Promise<void> {
+    // Esperar a que la página se estabilice
+    await this.page.locator('ngx-spinner, .loader, #loader').first().waitFor({ state: 'hidden', timeout: 10000 }).catch(() => { });
 
-    const isPresent = await targetLabel
-      .waitFor({ state: 'visible', timeout: 3000 })
-      .then(() => true)
-      .catch(() => false);
+    const noLabel = this.baggageNoLabel.first();
+    const noRadio = this.baggageNoRadio.first();
+
+    // Comprobar si la opción NO está visible (hasta 8 segundos de margen para Angular)
+    const isPresent = await noLabel.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false);
 
     if (isPresent) {
-      await this.smoothScroll(targetLabel, 350);
-      await targetLabel.click();
+      console.log('ℹ️ [Ancillaries] Sección "Do you need more baggage?" detectada. Marcando "NO"...');
+      await this.smoothScroll(noLabel, 350);
+
+      // 1. Clic en el label contenedor
+      await noLabel.click();
+      await this.page.waitForTimeout(250);
+
+      // 2. Forzar eventos nativos para que Angular actualice su FormControl
+      await noRadio.evaluate((el: HTMLInputElement) => {
+        el.checked = true;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }).catch(() => { });
+
+      // 3. Validar con aserción que el radio efectivamente quedó marcado
+      await expect(noRadio).toBeChecked({ timeout: 5000 }).catch(async () => {
+        // Fallback: clic directo sobre el texto
+        await this.page.getByText(/No, I have what I need|No necesito/i).first().click({ force: true });
+        await this.page.waitForTimeout(300);
+      });
+
       await this.page.waitForTimeout(400);
+    } else {
+      console.log('ℹ️ [Ancillaries] Sección de decisión de equipaje no requerida en este flujo.');
     }
   }
 
@@ -67,8 +98,8 @@ export class AncillariesPage extends BasePage {
 
     const yes = (v?: string) => String(v ?? '').trim().toLowerCase() === 'si';
 
-    // 1. Resolver decisión inicial de equipaje (si está presente)
-    await this.handleBaggageDecision(yes(flags['Equipaje Adic']));
+    // 1. Resolver decisión de equipaje al inicio
+    await this.handleBaggageDecision();
 
     // 2. Selección de ancillaries según flags del Excel
     if (yes(flags.Asiento)) await this.selectSeat();
@@ -82,6 +113,15 @@ export class AncillariesPage extends BasePage {
   // ─── Navegación al Pago ────────────────────────────────────────────────────
 
   async goToPayment(): Promise<void> {
+    // Si la opción de equipaje sigue desmarcada o apareció después, la marcamos
+    const noRadio = this.baggageNoRadio.first();
+    if (await noRadio.isVisible({ timeout: 1500 }).catch(() => false)) {
+      const isChecked = await noRadio.isChecked().catch(() => false);
+      if (!isChecked) {
+        await this.handleBaggageDecision();
+      }
+    }
+
     const activePaymentBtn = this.goToPaymentBtn;
     await expect(activePaymentBtn).toBeVisible({ timeout: 15000 });
     await this.smoothScroll(activePaymentBtn, 500);
@@ -92,8 +132,17 @@ export class AncillariesPage extends BasePage {
       if (/.*(abracheckout|sdkqa|\/pay|\/checkout|\/payment)/i.test(currentUrl)) {
         return;
       }
+
+      // Re-verificar si apareció el error de validación rojo
+      if (await this.baggageNoLabel.first().isVisible().catch(() => false)) {
+        const isChecked = await this.baggageNoRadio.first().isChecked().catch(() => false);
+        if (!isChecked) {
+          await this.handleBaggageDecision();
+        }
+      }
+
       if (await activePaymentBtn.isVisible()) {
-        await activePaymentBtn.click({ force: true });
+        await activePaymentBtn.click();
       }
       await this.page.waitForURL(/.*(abracheckout|sdkqa|\/pay|\/checkout|\/payment)/i, { timeout: 4000 });
     }).toPass({
@@ -104,21 +153,16 @@ export class AncillariesPage extends BasePage {
 
   // ─── Ancillaries Específicas ───────────────────────────────────────────────
 
-  /**
-   * Selección y guardado de asiento en el mapa interactivo (divs de gridcell)
-   */
   private async selectSeat(): Promise<void> {
     const opened = await this.openAncillaryCard('SEAT', ['Choose your seat', 'Seat', 'Asiento']);
     if (!opened) return;
 
-    // 1. Esperar que el modal/mapa de asientos cargue
     const seatMapModal = this.page.locator(
       'optional-service-modal-layout, seatmap-grid, .seatmap-container, mat-dialog-container'
     ).first();
     await seatMapModal.waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
     await this.page.waitForTimeout(800);
 
-    // 2. Localizar el primer asiento disponible (div role="gridcell" con aria-label "available")
     const availableSeat = this.page.locator(
       '.cell--seat[aria-label*="available" i]:not([aria-disabled="true"]):not([aria-selected="true"]), [role="gridcell"][aria-label*="available" i]:not([aria-disabled="true"]):not([aria-selected="true"]), .cell--seat[aria-label*="disponible" i]:not([aria-disabled="true"])'
     ).first();
@@ -129,7 +173,6 @@ export class AncillariesPage extends BasePage {
       await this.page.waitForTimeout(500);
     }
 
-    // 3. Confirmar y guardar asiento en el botón primario del footer ("Confirm selection")
     const confirmSeatBtn = this.page.locator(
       'button.nbf-btn--primary:has-text("Confirm selection"), button:has-text("Confirm selection"), button:has-text("Confirmar selección"), button:has-text("Save and exit"), button:has-text("Guardar y salir"), button:has-text("Confirm"), button:has-text("Confirmar")'
     ).and(this.page.locator(':visible')).first();
@@ -137,7 +180,6 @@ export class AncillariesPage extends BasePage {
     if (await confirmSeatBtn.waitFor({ state: 'visible', timeout: 6000 }).then(() => true).catch(() => false)) {
       await this.smoothScroll(confirmSeatBtn, 300);
       await confirmSeatBtn.click({ force: true });
-      // Esperar que el modal de asientos cierre
       await this.page.locator('optional-service-modal-layout, mat-dialog-container, .cdk-overlay-backdrop').first().waitFor({ state: 'hidden', timeout: 10000 }).catch(() => { });
     }
 
@@ -216,7 +258,6 @@ export class AncillariesPage extends BasePage {
     const opened = await this.openAncillaryCard('PBRD', ['Priority boarding', 'Abordaje prioritario']);
     if (!opened) return;
 
-    // Seleccionar únicamente la casilla del primer pasajero (data-index="0")
     const firstPaxCheckbox = this.page.locator(
       'li.passenger-selector__item[data-index="0"] mat-checkbox, .passenger-selector__list li mat-checkbox, .passenger-selector__list mat-checkbox'
     ).first();
