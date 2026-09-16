@@ -1,4 +1,4 @@
-import { test } from '../../src/fixtures/test.fixture';
+import { test, expect } from '@playwright/test';
 import { ExcelReader } from '../../src/helpers/ExcelReader';
 import { URLS, PAYMENT } from '../../src/config/environment';
 import { AvailabilityPage } from '../../src/pages/nbf/AvailabilityPage';
@@ -187,25 +187,30 @@ test.describe('NBF -- One Way (DDT)', () => {
     console.log(`NBF_OW: ${testData.length} casos cargados`);
   });
 
-  test('Ejecutar casos One Way desde Excel', async ({ page }) => {
+  test('Ejecutar casos One Way desde Excel', async ({ browser }) => {
     const failures: string[] = [];
 
     for (const tc of testData) {
       // Si TC_FILTER esta activo, saltar las filas que no coincidan
       if (TC_FILTER && String(tc.TC) !== TC_FILTER) continue;
 
-      await test.step(`[${tc.TC}] ${tc.Cobertura} | POS:${tc.POS} | Bundle:${tc.Bundle}`, async () => {
-        try {
+      // Crear un contexto nuevo y aislado para cada caso (limpieza total de cookies y sesión)
+      const context = await browser.newContext();
+      const page = await context.newPage();
+
+      try {
+        await test.step(`[${tc.TC}] ${tc.Cobertura} | POS:${tc.POS} | Bundle:${tc.Bundle}`, async () => {
           await runNbfCase(page, tc, URLS.NBF_OW);
-        } catch (err) {
-          // Registrar el fallo sin detener el resto de las filas
-          const msg = `[${tc.TC}] FALLO: ${(err as Error).message}`;
-          failures.push(msg);
-          console.error(msg);
-          // Navegar a URL base para limpiar el estado del browser antes del siguiente caso
-          await page.goto('about:blank').catch(() => { });
-        }
-      });
+        });
+      } catch (err) {
+        // Registrar el fallo sin detener el resto de las filas
+        const msg = `[${tc.TC}] FALLO: ${(err as Error).message}`;
+        failures.push(msg);
+        console.error(msg);
+      } finally {
+        // Cierra el contexto liberando memoria y eliminando datos residuales
+        await context.close();
+      }
     }
 
     // Fallar el test al final si alguna fila tuvo error
@@ -222,27 +227,32 @@ test.describe('NBF -- Round Trip (DDT)', () => {
   let testData: NbfCaseData[] = [];
 
   test.beforeAll(async () => {
-    testData = await reader.getSheetData<NbfCaseData>('NBF_RT');
+    testData = await reader.getSheetData<NbfCaseData>('NBF_RT').catch(() => [] as NbfCaseData[]);
     console.log(`NBF_RT: ${testData.length} casos cargados`);
   });
 
-  test('Ejecutar casos Round Trip desde Excel', async ({ page }) => {
+  test('Ejecutar casos Round Trip desde Excel', async ({ browser }) => {
     const failures: string[] = [];
 
     for (const tc of testData) {
       // Si TC_FILTER esta activo, saltar las filas que no coincidan
       if (TC_FILTER && String(tc.TC) !== TC_FILTER) continue;
 
-      await test.step(`[${tc.TC}] ${tc.Cobertura} | POS:${tc.POS} | Bundle:${tc.Bundle}`, async () => {
-        try {
+      // Crear un contexto nuevo y aislado para cada caso
+      const context = await browser.newContext();
+      const page = await context.newPage();
+
+      try {
+        await test.step(`[${tc.TC}] ${tc.Cobertura} | POS:${tc.POS} | Bundle:${tc.Bundle}`, async () => {
           await runNbfCase(page, tc, URLS.NBF_RT);
-        } catch (err) {
-          const msg = `[${tc.TC}] FALLO: ${(err as Error).message}`;
-          failures.push(msg);
-          console.error(msg);
-          await page.goto('about:blank').catch(() => { });
-        }
-      });
+        });
+      } catch (err) {
+        const msg = `[${tc.TC}] FALLO: ${(err as Error).message}`;
+        failures.push(msg);
+        console.error(msg);
+      } finally {
+        await context.close();
+      }
     }
 
     if (failures.length > 0) {
