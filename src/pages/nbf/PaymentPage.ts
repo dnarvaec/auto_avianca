@@ -131,25 +131,11 @@ export class PaymentPage extends BasePage {
     const mmPadded = month.padStart(2, '0'); // Ej: "01"
     const yyPadded = year.length === 4 ? year.slice(-2) : year.padStart(2, '0'); // Ej: "28"
 
-    // ── Seleccionar Mes
-    const monthTrigger = this.expiryMonthTrigger.first();
-    await this.smoothScroll(monthTrigger, 250);
-    await monthTrigger.click();
+    // ── Seleccionar Mes con reintento resiliente
+    await this.selectDropdownOption(this.expiryMonthTrigger, '#expiryMonth-list-panel', mmPadded);
 
-    const monthOption = this.page.locator(`#expiryMonth-list-panel button[data-value="${mmPadded}"]`).first();
-    await expect(monthOption).toBeVisible({ timeout: 5000 });
-    await monthOption.click();
-    await this.page.waitForTimeout(200);
-
-    // ── Seleccionar Año
-    const yearTrigger = this.expiryYearTrigger.first();
-    await this.smoothScroll(yearTrigger, 250);
-    await yearTrigger.click();
-
-    const yearOption = this.page.locator(`#expiryYear-list-panel button[data-value="${yyPadded}"]`).first();
-    await expect(yearOption).toBeVisible({ timeout: 5000 });
-    await yearOption.click();
-    await this.page.waitForTimeout(200);
+    // ── Seleccionar Año con reintento resiliente
+    await this.selectDropdownOption(this.expiryYearTrigger, '#expiryYear-list-panel', yyPadded);
 
     // ── 4. CVV (Limpieza y escritura controlada) ───────────────────────────
     await this.smoothScroll(this.cvvInput, 200);
@@ -221,6 +207,43 @@ export class PaymentPage extends BasePage {
   }
 
   // ─── Helpers privados ─────────────────────────────────────────────────────
+
+  /**
+   * Helper resiliente para abrir y seleccionar opciones en los desplegables de Abra Checkout
+   */
+  private async selectDropdownOption(trigger: Locator, panelSelector: string, dataValue: string): Promise<void> {
+    const triggerEl = trigger.first();
+    await expect(triggerEl).toBeVisible({ timeout: 10000 });
+    await this.smoothScroll(triggerEl, 250);
+
+    const panel = this.page.locator(panelSelector);
+    const option = this.page.locator(`${panelSelector} button[data-value="${dataValue}"], ${panelSelector} [role="option"][data-value="${dataValue}"]`).first();
+
+    await expect(async () => {
+      // 1. Si el panel está cerrado, hacer clic en el trigger para abrirlo
+      if (!(await panel.isVisible())) {
+        await triggerEl.click({ force: true });
+        await this.page.waitForTimeout(300);
+      }
+
+      // 2. Si el panel ya abrió, hacer scroll y clic en la opción
+      if (await panel.isVisible()) {
+        await option.scrollIntoViewIfNeeded().catch(() => { });
+        await option.click({ force: true });
+      } else {
+        // 3. Fallback: disparar evento directo al botón
+        await option.evaluate((btn: HTMLElement) => {
+          btn.click();
+          btn.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      }
+    }).toPass({
+      intervals: [400, 800],
+      timeout: 8000,
+    });
+
+    await this.page.waitForTimeout(300);
+  }
 
   private parseExpiry(expiry: string): { month: string; year: string } {
     const [mm, yy] = expiry.split('/');
