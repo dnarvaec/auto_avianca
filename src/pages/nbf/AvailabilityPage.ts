@@ -14,6 +14,7 @@ const CABIN_TAB: Record<string, string> = {
 export class AvailabilityPage extends BasePage {
   // ─── Locators ──────────────────────────────────────────────────────────────
   private readonly cookieAcceptBtn: Locator;
+  private readonly cookieDarkFilter: Locator;
   private readonly flightCards: Locator;
 
   constructor(page: Page) {
@@ -21,6 +22,7 @@ export class AvailabilityPage extends BasePage {
     this.cookieAcceptBtn = page.locator(
       '#onetrust-accept-btn-handler, button:has-text("Allow all"), button:has-text("Accept"), button:has-text("Aceptar")'
     );
+    this.cookieDarkFilter = page.locator('.onetrust-pc-dark-filter, #onetrust-banner-sdk, #onetrust-consent-sdk');
     this.flightCards = page.locator('button.flight-container');
   }
 
@@ -37,26 +39,38 @@ export class AvailabilityPage extends BasePage {
     await this.page.evaluate(() => {
       document.querySelectorAll('.onetrust-pc-dark-filter, #onetrust-banner-sdk, #onetrust-consent-sdk').forEach(el => el.remove());
     }).catch(() => { });
+
+    // Espera dinámica: confirmar que la cortina negra ya no sea visible ni bloquee la pantalla
+    await this.cookieDarkFilter.first().waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { });
+    await this.cookieDarkFilter.first().waitFor({ state: 'detached', timeout: 2000 }).catch(() => { });
   }
 
   async waitForFlights(): Promise<void> {
-    // Esperar directamente a que el primer vuelo esté visible en el DOM (sin trabarse en skeletons)
+    // 1. Esperar que desaparezcan posibles skeletons o loaders de vuelos
+    await this.page.locator('.flight-skeleton, .spinner, ngx-spinner, #loader').first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => { });
+
+    // 2. Esperar directamente a que el primer vuelo esté visible en el DOM (sin trabarse en skeletons)
     await expect(this.flightCards.first()).toBeVisible({ timeout: 35000 });
+
+    // 3. Esperar dinámicamente a que el listado cargue los vuelos completos (dar margen al 5to vuelo)
+    await this.flightCards.nth(4).waitFor({ state: 'visible', timeout: 8000 }).catch(() => { });
   }
 
   // ─── Acciones ──────────────────────────────────────────────────────────────
 
   /**
-   * Selecciona el sexto vuelo disponible (índice 5) y asegura la apertura de los bundles.
+   * Selecciona el quinto vuelo disponible (índice 4) y asegura la apertura de los bundles.
    */
   async selectFirstFlight(): Promise<void> {
+    // 1. Descartar cookies y esperar a que la cortina negra desaparezca totalmente
     await this.dismissCookies();
+    // 2. Esperar que los vuelos terminen de renderizarse en el DOM
     await this.waitForFlights();
     await this.dismissCookies();
 
-    // Seleccionar el 6to vuelo disponible (índice 5 en base 0) o el último si hay menos
+    // Seleccionar el 5to vuelo disponible (índice 4 en base 0) o el último si hay menos de 5
     const count = await this.flightCards.count();
-    const targetFlight = count >= 6 ? this.flightCards.nth(5) : this.flightCards.last();
+    const targetFlight = count >= 5 ? this.flightCards.nth(4) : this.flightCards.last();
 
     await this.smoothScroll(targetFlight, 500);
 
@@ -65,7 +79,7 @@ export class AvailabilityPage extends BasePage {
       .locator('button.ff-price-container, [data-testid*="ff-price-container"]')
       .first();
 
-    // Bucle resiliente: hace clic en el 6to vuelo hasta que el bundle sea visible
+    // Bucle resiliente: hace clic en el 5to vuelo hasta que el bundle sea visible
     await expect(async () => {
       await this.dismissCookies();
       if (!(await bundlePriceIndicator.isVisible())) {
