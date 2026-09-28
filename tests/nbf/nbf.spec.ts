@@ -128,8 +128,9 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   const nbfUrl = buildNbfUrl(url, tc);
   await test.step('1 -- Vuelo + Bundle', async () => {
     await page.goto(nbfUrl);
+    const isRoundTrip = String(tc.Viaje).trim().toUpperCase() === 'RT';
     await availPage.selectFirstFlight();
-    await availPage.selectBundle(String(tc.Bundle));
+    await availPage.selectBundle(String(tc.Bundle), isRoundTrip);
     await tripSummary.waitForPage();
     await tripSummary.continue();
   });

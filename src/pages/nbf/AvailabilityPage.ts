@@ -95,20 +95,44 @@ export class AvailabilityPage extends BasePage {
 
   /**
    * Selecciona la cabina y el bundle según el valor del Excel (ej. "Eco Basic", "Bus Flex").
+   * Si isRoundTrip es true, ejecuta la selección tanto para la Ida como para el Regreso.
    */
-  async selectBundle(bundle: string): Promise<void> {
+  async selectBundle(bundle: string, isRoundTrip = false): Promise<void> {
+    // ── 1. Seleccionar bundle del vuelo de Ida ─────────────────────────────
+    await this.chooseBundlePrice(bundle);
+    await this.handleCroModal(bundle);
+
+    // ── 2. Si es Round Trip, seleccionar vuelo y bundle de regreso ─────────
+    if (isRoundTrip) {
+      console.log('ℹ️ [Availability] Round Trip detectado: Procediendo a seleccionar vuelo y bundle de regreso...');
+      await this.selectReturnFlight();
+      await this.chooseBundlePrice(bundle);
+      await this.handleCroModal(bundle);
+    }
+
+    // ── 3. Esperar navegación al Trip Summary (Soporta /booking/trip y /demo-booking/trip)
+    await this.page.waitForURL(/.*\/trip/, { timeout: 25000 });
+  }
+
+  // ─── Helpers Privados para Round Trip y Bundles ────────────────────────────
+
+  /**
+   * Clic en la cabina y el botón de precio del Bundle
+   */
+  private async chooseBundlePrice(bundle: string): Promise<void> {
     const [cabinKey, bundleName] = bundle.split(' ') as [string, string];
     const bundleUpper = bundleName.toUpperCase() as 'BASIC' | 'CLASSIC' | 'FLEX';
 
     // ── Selección de cabina ────────────────────────────────────────────────
     if (cabinKey === 'Bus') {
-      const busTab = this.page.locator(CABIN_TAB.Bus);
-      await expect(busTab).toBeVisible({ timeout: 5000 });
-      await this.smoothScroll(busTab, 300);
-      await busTab.click({ force: true });
-      await this.page.waitForTimeout(400);
+      const busTab = this.page.locator(CABIN_TAB.Bus).first();
+      if (await busTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await this.smoothScroll(busTab, 300);
+        await busTab.click({ force: true });
+        await this.page.waitForTimeout(400);
+      }
     } else {
-      const ecoTab = this.page.getByText(CABIN_TAB.Eco, { exact: true });
+      const ecoTab = this.page.getByText(CABIN_TAB.Eco, { exact: true }).first();
       if (await ecoTab.isVisible({ timeout: 1500 }).catch(() => false)) {
         await this.smoothScroll(ecoTab, 200);
         await ecoTab.click({ force: true });
@@ -121,18 +145,26 @@ export class AvailabilityPage extends BasePage {
       ? `ff-price-container-BC ${bundleUpper}`
       : `ff-price-container-${bundleUpper}`;
 
-    const priceBtn = this.page.getByTestId(priceTestId).first();
+    // Buscamos el botón de precio visible
+    const priceBtn = this.page.getByTestId(priceTestId).and(this.page.locator(':visible')).first();
 
     await expect(priceBtn).toBeVisible({ timeout: 15000 });
     await this.smoothScroll(priceBtn, 400);
     await priceBtn.click({ force: true });
+  }
 
-    // ── Modal CRO #FB1375 (Upsell para Basic y Classic) ────────────────────
+  /**
+   * Manejo del Modal CRO #FB1375 (Upsell para Basic y Classic)
+   */
+  private async handleCroModal(bundle: string): Promise<void> {
+    const [cabinKey, bundleName] = bundle.split(' ') as [string, string];
+    const bundleUpper = bundleName.toUpperCase();
+
     if (cabinKey !== 'Bus' && (bundleUpper === 'BASIC' || bundleUpper === 'CLASSIC')) {
       await this.page.waitForTimeout(1000);
 
       const mainBtn = this.page.locator('#FB1375 .cro-no-accept-upsell-button, .cro-no-accept-upsell-button').first();
-      if (await mainBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      if (await mainBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
         await this.smoothScroll(mainBtn, 300);
         await mainBtn.click({ force: true });
       } else {
@@ -146,8 +178,48 @@ export class AvailabilityPage extends BasePage {
         }
       }
     }
+  }
 
-    // Esperar navegación al Trip Summary (Soporta /booking/trip y /demo-booking/trip)
-    await this.page.waitForURL(/.*\/trip/, { timeout: 25000 });
+  /**
+   * Localiza y selecciona el quinto vuelo del tramo de Regreso
+   */
+  private async selectReturnFlight(): Promise<void> {
+    // 1. Esperar que la lista de vuelos de regreso esté disponible y sin loaders
+    await this.page.locator('.flight-skeleton, .spinner, ngx-spinner, #loader').first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => { });
+    await this.page.waitForTimeout(800);
+
+    // 2. Identificar el contenedor de vuelos de regreso o los vuelos que no estén seleccionados/colapsados
+    const inboundContainer = this.page.locator(
+      '.bound-container:nth-of-type(2), [data-testid="bound-1"], .bound--inbound, .inbound-section'
+    ).first();
+
+    const returnCards = (await inboundContainer.isVisible({ timeout: 3000 }).catch(() => false))
+      ? inboundContainer.locator('button.flight-container')
+      : this.page.locator('button.flight-container:visible:not(.selected)');
+
+    // Esperar a que el 5to vuelo de regreso cargue
+    await returnCards.nth(4).waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
+
+    const count = await returnCards.count();
+    const targetReturnFlight = count >= 5 ? returnCards.nth(4) : returnCards.last();
+
+    await this.smoothScroll(targetReturnFlight, 500);
+
+    const bundlePriceIndicator = this.page
+      .locator('button.ff-price-container, [data-testid*="ff-price-container"]')
+      .first();
+
+    // Bucle resiliente para abrir los bundles del vuelo de regreso
+    await expect(async () => {
+      await this.dismissCookies();
+      if (!(await bundlePriceIndicator.isVisible())) {
+        await targetReturnFlight.scrollIntoViewIfNeeded();
+        await targetReturnFlight.click({ force: true });
+      }
+      await expect(bundlePriceIndicator).toBeVisible({ timeout: 3000 });
+    }).toPass({
+      intervals: [500, 1000, 2000],
+      timeout: 25000,
+    });
   }
 }
