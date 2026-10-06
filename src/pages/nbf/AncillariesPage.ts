@@ -35,9 +35,9 @@ export class AncillariesPage extends BasePage {
 
   async waitForPage(): Promise<void> {
     // 1. Esperar que desaparezcan loaders de Angular
-    await this.page.locator('ngx-spinner, .loader, #loader, .skeleton-loading').first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => { });
-    // 2. Esperar que el contenedor principal esté en el DOM
-    await expect(this.ancillariesSection.first()).toBeVisible({ timeout: 25000 });
+    await this.page.locator('ngx-spinner, .loader, #loader, .skeleton-loading, .loading-container:not(.hidden)').first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => { });
+    // 2. Esperar que las tarjetas de servicios opcionales estén completamente montadas en el DOM
+    await expect(this.page.locator('optional-services-container mat-card, .content--ancillaries').first()).toBeVisible({ timeout: 25000 });
   }
 
   // ─── Decisión Condicional de Equipaje ──────────────────────────────────────
@@ -47,14 +47,11 @@ export class AncillariesPage extends BasePage {
    * Espera a que termine la carga de Angular, marca "NO" y valida que quede activo.
    */
   async handleBaggageDecision(): Promise<void> {
-    // Esperar a que la página se estabilice
-    await this.page.locator('ngx-spinner, .loader, #loader').first().waitFor({ state: 'hidden', timeout: 10000 }).catch(() => { });
-
     const noLabel = this.baggageNoLabel.first();
     const noRadio = this.baggageNoRadio.first();
 
-    // Comprobar si la opción NO está visible (hasta 8 segundos de margen para Angular)
-    const isPresent = await noLabel.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false);
+    // Comprobar si la opción NO está visible en la página
+    const isPresent = await noLabel.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
 
     if (isPresent) {
       console.log('ℹ️ [Ancillaries] Sección "Do you need more baggage?" detectada. Marcando "NO"...');
@@ -93,16 +90,16 @@ export class AncillariesPage extends BasePage {
     'Equipaje Deportivo': string;
     'Asistencia Viaje': string;
     'Abordaje Prioritario': string;
-  }): Promise<void> {
+  }, isRoundTrip = false): Promise<void> {
     await this.waitForPage();
 
     const yes = (v?: string) => String(v ?? '').trim().toLowerCase() === 'si';
 
-    // 1. Resolver decisión de equipaje al inicio
+    // 1. Resolver SIEMPRE de primero la decisión de equipaje antes de cualquier modal
     await this.handleBaggageDecision();
 
-    // 2. Selección de ancillaries según flags del Excel
-    if (yes(flags.Asiento)) await this.selectSeat();
+    // 2. Selección de ancillaries según flags del Excel (pasando si es RT al asiento)
+    if (yes(flags.Asiento)) await this.selectSeat(isRoundTrip);
     if (yes(flags['Equipaje Adic'])) await this.selectBaggage();
     if (yes(flags['Sala VIP'])) await this.selectVipLounge();
     if (yes(flags['Equipaje Deportivo'])) await this.selectSportsEquipment();
@@ -153,35 +150,72 @@ export class AncillariesPage extends BasePage {
 
   // ─── Ancillaries Específicas ───────────────────────────────────────────────
 
-  private async selectSeat(): Promise<void> {
+  /**
+   * Selección y guardado de asiento en el mapa interactivo.
+   * - Para OW: Selecciona 1er asiento y confirma.
+   * - Para RT: Selecciona 1er asiento de ida, da Continuar, selecciona 1er asiento de regreso y confirma.
+   */
+  private async selectSeat(isRoundTrip = false): Promise<void> {
     const opened = await this.openAncillaryCard('SEAT', ['Choose your seat', 'Seat', 'Asiento']);
     if (!opened) return;
 
+    // 1. Esperar que el modal del mapa de asientos cargue en el DOM
     const seatMapModal = this.page.locator(
       'optional-service-modal-layout, seatmap-grid, .seatmap-container, mat-dialog-container'
     ).first();
     await seatMapModal.waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
     await this.page.waitForTimeout(800);
 
-    const availableSeat = this.page.locator(
+    // ── TRAMO 1: Vuelo de Ida ────────────────────────────────────────────────
+    // Seleccionar primer asiento disponible de ida
+    const availableSeatIda = seatMapModal.locator(
       '.cell--seat[aria-label*="available" i]:not([aria-disabled="true"]):not([aria-selected="true"]), [role="gridcell"][aria-label*="available" i]:not([aria-disabled="true"]):not([aria-selected="true"]), .cell--seat[aria-label*="disponible" i]:not([aria-disabled="true"])'
     ).first();
 
-    if (await availableSeat.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) {
-      await this.smoothScroll(availableSeat, 300);
-      await availableSeat.click({ force: true });
-      await this.page.waitForTimeout(500);
-    }
+    await expect(availableSeatIda).toBeVisible({ timeout: 8000 });
+    await this.smoothScroll(availableSeatIda, 250);
+    await availableSeatIda.click({ force: true });
+    await this.page.waitForTimeout(500);
 
-    const confirmSeatBtn = this.page.locator(
-      'button.nbf-btn--primary:has-text("Confirm selection"), button:has-text("Confirm selection"), button:has-text("Confirmar selección"), button:has-text("Save and exit"), button:has-text("Guardar y salir"), button:has-text("Confirm"), button:has-text("Confirmar")'
+    // Botón primario del modal (Continuar si es RT, Confirm selection si es OW)
+    const actionBtnIda = seatMapModal.locator(
+      'button.nbf-btn--primary, button[data-testid="nbf-button"], button:has-text("Confirm selection"), button:has-text("Confirmar selección"), button:has-text("Continue"), button:has-text("Continuar")'
     ).and(this.page.locator(':visible')).first();
 
-    if (await confirmSeatBtn.waitFor({ state: 'visible', timeout: 6000 }).then(() => true).catch(() => false)) {
-      await this.smoothScroll(confirmSeatBtn, 300);
-      await confirmSeatBtn.click({ force: true });
-      await this.page.locator('optional-service-modal-layout, mat-dialog-container, .cdk-overlay-backdrop').first().waitFor({ state: 'hidden', timeout: 10000 }).catch(() => { });
+    await expect(actionBtnIda).toBeVisible({ timeout: 5000 });
+    await this.smoothScroll(actionBtnIda, 300);
+    await actionBtnIda.click({ force: true });
+    await this.page.waitForTimeout(1000);
+
+    // ── TRAMO 2: Vuelo de Regreso (Solo Round Trip) ─────────────────────────
+    if (isRoundTrip) {
+      console.log('ℹ️ [Ancillaries] Round Trip: Seleccionando asiento para el vuelo de regreso...');
+
+      // Esperar a que el mapa se limpie y presente los asientos del vuelo de regreso
+      const availableSeatRegreso = seatMapModal.locator(
+        '.cell--seat[aria-label*="available" i]:not([aria-disabled="true"]):not([aria-selected="true"]), [role="gridcell"][aria-label*="available" i]:not([aria-disabled="true"]):not([aria-selected="true"]), .cell--seat[aria-label*="disponible" i]:not([aria-disabled="true"])'
+      ).first();
+
+      await expect(availableSeatRegreso).toBeVisible({ timeout: 10000 });
+      await this.smoothScroll(availableSeatRegreso, 250);
+      await availableSeatRegreso.click({ force: true });
+      await this.page.waitForTimeout(500);
+
+      // Clic final en Confirm selection
+      const confirmSelectionBtn = seatMapModal.locator(
+        'button.nbf-btn--primary, button[data-testid="nbf-button"], button:has-text("Confirm selection"), button:has-text("Confirmar selección")'
+      ).and(this.page.locator(':visible')).first();
+
+      await expect(confirmSelectionBtn).toBeVisible({ timeout: 5000 });
+      await this.smoothScroll(confirmSelectionBtn, 300);
+      await confirmSelectionBtn.click({ force: true });
     }
+
+    // ── Esperar que el modal cierre ──────────────────────────────────────────
+    await this.page.locator('optional-service-modal-layout, mat-dialog-container, .cdk-overlay-backdrop')
+      .first()
+      .waitFor({ state: 'hidden', timeout: 10000 })
+      .catch(() => { });
 
     await this.waitForPage();
   }

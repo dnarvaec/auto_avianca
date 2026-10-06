@@ -21,7 +21,7 @@ export default defineConfig({
     trace: 'off',
     screenshot: 'off',
     video: 'on',
-    /* Viewport estándar desktop */
+    /* Viewport estándar desktop (Se mantendrá para otros proyectos si se descomentan) */
     viewport: { width: 1280, height: 720 },
     /* Timeouts por acción para fallar rápido si un elemento no responde */
     actionTimeout: 30_000,
@@ -34,8 +34,14 @@ export default defineConfig({
       /* Usa el Google Chrome instalado en el sistema (no requiere playwright install) */
       name: 'chrome',
       use: {
-        ...devices['Desktop Chrome'],
+        // 1. Quitamos ...devices['Desktop Chrome'] para evitar el conflicto
         channel: 'chrome',
+        // 2. Apagamos el viewport para que use el tamaño real
+        viewport: null,
+        launchOptions: {
+          // 3. Forzamos que la ventana se maximice al abrirse
+          args: ['--start-maximized'],
+        },
       },
     },
     /* Descomentar cuando los navegadores estén disponibles por proxy corporativo */
@@ -44,6 +50,7 @@ export default defineConfig({
     //   use: { ...devices['Desktop Firefox'] },
     // },
   ],
+
   /* Carpeta de artefactos de test */
   outputDir: 'test-results',
 });

@@ -10,7 +10,7 @@ const MONTHS_EN = [
 ];
 
 const NATIONALITY_MAP: Record<string, string> = {
-  CO: 'Colombia', US: 'United States', BR: 'Brazil', ES: 'Spain',
+  CO: 'Colombia', US: 'USA', BR: 'Brazil', ES: 'Spain',
   UK: 'United Kingdom', AR: 'Argentina', MX: 'Mexico',
   PE: 'Peru', EC: 'Ecuador', VE: 'Venezuela',
 };

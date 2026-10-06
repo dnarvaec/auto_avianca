@@ -123,12 +123,13 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   const paymentPage = new PaymentPage(page);
   const confirmationPage = new ConfirmationPage(page);
 
+  const isRoundTrip = String(tc.Viaje).trim().toUpperCase() === 'RT';
+
   // 1/N: Seleccion de vuelo y bundle -----------------------------------------
   // La URL se construye dinamicamente con los pasajeros del caso (na/nj/nn/ni)
   const nbfUrl = buildNbfUrl(url, tc);
   await test.step('1 -- Vuelo + Bundle', async () => {
     await page.goto(nbfUrl);
-    const isRoundTrip = String(tc.Viaje).trim().toUpperCase() === 'RT';
     await availPage.selectFirstFlight();
     await availPage.selectBundle(String(tc.Bundle), isRoundTrip);
     await tripSummary.waitForPage();
@@ -157,7 +158,7 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
       'Equipaje Deportivo': String(tc['Equipaje Deportivo']),
       'Asistencia Viaje': String(tc['Asistencia Viaje']),
       'Abordaje Prioritario': String(tc['Abordaje Prioritario']),
-    });
+    }, isRoundTrip);
   });
 
   // 4/N: Formulario de pago con tarjeta ------------------------------------
