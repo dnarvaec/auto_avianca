@@ -9,9 +9,10 @@ dist/
 # Variables de entorno (nunca subir al repo)
 .env
 
-# Excel con datos de prueba (excluir del repo; solo subir el .gitkeep)
+# Excel con datos de prueba (versionar solo el maestro)
 data/*.xlsx
 data/*.xls
+!data/maestro.xlsx
 !data/.gitkeep
 
 # OS / Editor

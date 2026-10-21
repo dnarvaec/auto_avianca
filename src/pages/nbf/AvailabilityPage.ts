@@ -16,6 +16,7 @@ export class AvailabilityPage extends BasePage {
   private readonly cookieAcceptBtn: Locator;
   private readonly cookieDarkFilter: Locator;
   private readonly flightCards: Locator;
+  private selectedFlightPanel?: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -51,15 +52,12 @@ export class AvailabilityPage extends BasePage {
 
     // 2. Esperar directamente a que el primer vuelo esté visible en el DOM (sin trabarse en skeletons)
     await expect(this.flightCards.first()).toBeVisible({ timeout: 35000 });
-
-    // 3. Esperar dinámicamente a que el listado cargue los vuelos completos (dar margen al 5to vuelo)
-    await this.flightCards.nth(4).waitFor({ state: 'visible', timeout: 8000 }).catch(() => { });
   }
 
   // ─── Acciones ──────────────────────────────────────────────────────────────
 
   /**
-   * Selecciona el quinto vuelo disponible (índice 4) y asegura la apertura de los bundles.
+   * Selecciona el primer vuelo que ofrece Economy y Business habilitadas.
    */
   async selectFirstFlight(): Promise<void> {
     // 1. Descartar cookies y esperar a que la cortina negra desaparezca totalmente
@@ -68,29 +66,7 @@ export class AvailabilityPage extends BasePage {
     await this.waitForFlights();
     await this.dismissCookies();
 
-    // Seleccionar el 5to vuelo disponible (índice 4 en base 0) o el último si hay menos de 5
-    const count = await this.flightCards.count();
-    const targetFlight = count >= 5 ? this.flightCards.nth(4) : this.flightCards.last();
-
-    await this.smoothScroll(targetFlight, 500);
-
-    // Indicador exacto de que el panel de bundles se abrió
-    const bundlePriceIndicator = this.page
-      .locator('button.ff-price-container, [data-testid*="ff-price-container"]')
-      .first();
-
-    // Bucle resiliente: hace clic en el 5to vuelo hasta que el bundle sea visible
-    await expect(async () => {
-      await this.dismissCookies();
-      if (!(await bundlePriceIndicator.isVisible())) {
-        await targetFlight.scrollIntoViewIfNeeded();
-        await targetFlight.click({ force: true });
-      }
-      await expect(bundlePriceIndicator).toBeVisible({ timeout: 3000 });
-    }).toPass({
-      intervals: [500, 1000, 2000],
-      timeout: 25000,
-    });
+    await this.selectFlightWithBothCabins(this.flightCards, 'ida');
   }
 
   /**
@@ -116,23 +92,72 @@ export class AvailabilityPage extends BasePage {
 
   // ─── Helpers Privados para Round Trip y Bundles ────────────────────────────
 
+  private async selectFlightWithBothCabins(cards: Locator, segment: string): Promise<void> {
+    this.selectedFlightPanel = undefined;
+    const visibleCards = cards.and(this.page.locator(':visible'));
+    await expect(visibleCards.first()).toBeVisible({ timeout: 35000 });
+    await expect(this.page.locator('nbf-skeleton-block:visible')).toHaveCount(0, { timeout: 35000 });
+    const count = await visibleCards.count();
+
+    for (let index = 0; index < count; index++) {
+      const card = visibleCards.nth(index);
+      if (!(await card.isEnabled())) continue;
+
+      await this.smoothScroll(card, 300);
+      const panel = card.locator('xpath=ancestor::expander-elem[1]');
+      const priceTrigger = card.locator('button.avail-price__container')
+        .and(this.page.locator(':visible')).first();
+      const prices = panel.locator('button.ff-price-container, [data-testid*="ff-price-container"]')
+        .and(this.page.locator(':visible'));
+      await expect(async () => {
+        if (!(await prices.first().isVisible())) {
+          await this.dismissCookies();
+          await priceTrigger.click();
+        }
+        await expect(prices.first()).toBeVisible({ timeout: 3000 });
+      }).toPass({ intervals: [500, 1000, 2000], timeout: 25000 });
+
+      const economy = panel.getByText(CABIN_TAB.Eco, { exact: true })
+        .and(this.page.locator(':visible')).first();
+      const business = panel.locator(CABIN_TAB.Bus)
+        .and(this.page.locator(':visible')).first();
+
+      if (
+        await economy.isVisible() && await economy.isEnabled() &&
+        await business.isVisible() && await business.isEnabled()
+      ) {
+        this.selectedFlightPanel = panel;
+        console.log(`[Availability] Vuelo de ${segment} ${index + 1}/${count}: Economy y Business disponibles.`);
+        return;
+      }
+    }
+
+    throw new Error(
+      `[Availability] Ninguno de los ${count} vuelos de ${segment} ofrece Economy y Business habilitadas.`
+    );
+  }
+
   /**
    * Clic en la cabina y el botón de precio del Bundle
    */
   private async chooseBundlePrice(bundle: string): Promise<void> {
+    const panel = this.selectedFlightPanel;
+    if (!panel) {
+      throw new Error('[Availability] Debe seleccionar un vuelo con ambas cabinas antes de elegir el bundle.');
+    }
     const [cabinKey, bundleName] = bundle.split(' ') as [string, string];
     const bundleUpper = bundleName.toUpperCase() as 'BASIC' | 'CLASSIC' | 'FLEX';
 
     // ── Selección de cabina ────────────────────────────────────────────────
     if (cabinKey === 'Bus') {
-      const busTab = this.page.locator(CABIN_TAB.Bus).first();
+      const busTab = panel.locator(CABIN_TAB.Bus).first();
       if (await busTab.isVisible({ timeout: 3000 }).catch(() => false)) {
         await this.smoothScroll(busTab, 300);
         await busTab.click({ force: true });
         await this.page.waitForTimeout(400);
       }
     } else {
-      const ecoTab = this.page.getByText(CABIN_TAB.Eco, { exact: true }).first();
+      const ecoTab = panel.getByText(CABIN_TAB.Eco, { exact: true }).first();
       if (await ecoTab.isVisible({ timeout: 1500 }).catch(() => false)) {
         await this.smoothScroll(ecoTab, 200);
         await ecoTab.click({ force: true });
@@ -146,7 +171,7 @@ export class AvailabilityPage extends BasePage {
       : `ff-price-container-${bundleUpper}`;
 
     // Buscamos el botón de precio visible
-    const priceBtn = this.page.getByTestId(priceTestId).and(this.page.locator(':visible')).first();
+    const priceBtn = panel.getByTestId(priceTestId).and(this.page.locator(':visible')).first();
 
     await expect(priceBtn).toBeVisible({ timeout: 15000 });
     await this.smoothScroll(priceBtn, 400);
@@ -181,7 +206,7 @@ export class AvailabilityPage extends BasePage {
   }
 
   /**
-   * Localiza y selecciona el quinto vuelo del tramo de Regreso
+   * Selecciona un vuelo de regreso con Economy y Business habilitadas.
    */
   private async selectReturnFlight(): Promise<void> {
     // 1. Esperar que la lista de vuelos de regreso esté disponible y sin loaders
@@ -197,29 +222,6 @@ export class AvailabilityPage extends BasePage {
       ? inboundContainer.locator('button.flight-container')
       : this.page.locator('button.flight-container:visible:not(.selected)');
 
-    // Esperar a que el 5to vuelo de regreso cargue
-    await returnCards.nth(4).waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
-
-    const count = await returnCards.count();
-    const targetReturnFlight = count >= 5 ? returnCards.nth(4) : returnCards.last();
-
-    await this.smoothScroll(targetReturnFlight, 500);
-
-    const bundlePriceIndicator = this.page
-      .locator('button.ff-price-container, [data-testid*="ff-price-container"]')
-      .first();
-
-    // Bucle resiliente para abrir los bundles del vuelo de regreso
-    await expect(async () => {
-      await this.dismissCookies();
-      if (!(await bundlePriceIndicator.isVisible())) {
-        await targetReturnFlight.scrollIntoViewIfNeeded();
-        await targetReturnFlight.click({ force: true });
-      }
-      await expect(bundlePriceIndicator).toBeVisible({ timeout: 3000 });
-    }).toPass({
-      intervals: [500, 1000, 2000],
-      timeout: 25000,
-    });
+    await this.selectFlightWithBothCabins(returnCards, 'regreso');
   }
 }
