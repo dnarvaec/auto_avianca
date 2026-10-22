@@ -139,12 +139,13 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   // 2/N: Datos de todos los pasajeros + Booking holder -----------------------
   // fillAllPassengers gestiona dinamicamente Adult 1 (Excel) + Adult 2+,
   // Youngs, Children e Infants (datos genericos con edad correcta).
-  await test.step('2 -- Pasajero(s) + Booking holder', async () => {
-    await travelersPage.fillAllPassengers(tc);
+  const passengerLastname = await test.step('2 -- Pasajero(s) + Booking holder', async () => {
+    const lastName = await travelersPage.fillAllPassengers(tc);
     await travelersPage.fillBookingHolder(
       String(tc.Telefono),
       String(tc.Correo),
     );
+    return lastName;
   });
 
   // 3/N: Generacion de PNR y ancillaries ------------------------------------
@@ -173,8 +174,11 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
     await paymentPage.submitPayment();
     const pnr = await confirmationPage.assertPaymentSuccess();
 
-    // Registrar PNR en las anotaciones del reporte
+    console.log(`[${tc.TC}] PNR: ${pnr} | Apellido: ${passengerLastname}`);
+
+    // Registrar PNR y apellido en las anotaciones del reporte
     test.info().annotations.push({ type: 'Booking Code (PNR)', description: pnr });
+    test.info().annotations.push({ type: 'Apellido', description: passengerLastname });
   });
 }
 

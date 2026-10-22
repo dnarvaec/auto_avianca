@@ -70,7 +70,8 @@ export class TravelersPage extends BasePage {
 
   // ─── Llenado de Pasajeros ──────────────────────────────────────────────────
 
-  async fillAllPassengers(tc: NbfCaseData): Promise<void> {
+  /** Completa los pasajeros y devuelve el apellido utilizado para Adult 1. */
+  async fillAllPassengers(tc: NbfCaseData): Promise<string> {
     await this.waitForPage();
 
     const numAdults = Math.max(1, Number(tc.Adultos) || 1);
@@ -81,12 +82,13 @@ export class TravelersPage extends BasePage {
     const dob1 = String(tc['F.Nac']).split('T')[0].split('-');
     const rawFirstName = String(tc.Nombre).trim().split(' ')[0] ?? 'Juan';
     const rawLastName = String(tc.Nombre).trim().split(' ').slice(1).join(' ') || rawFirstName;
+    const lastName = rawLastName.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '') || 'Perez';
 
     // Adult 1
     await this.fillPassengerPanel('Adult 1', {
       gender: String(tc.Genero).toUpperCase() === 'M' ? 'male' : 'female',
       firstName: rawFirstName.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, ''),
-      lastName: rawLastName.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '') || 'Perez',
+      lastName,
       day: dob1[2],
       monthIndex: dob1[1],
       year: dob1[0],
@@ -145,6 +147,7 @@ export class TravelersPage extends BasePage {
         nationality: NATIONALITY_MAP[GENERIC.nationality]!,
       });
     }
+    return lastName;
   }
 
   // ─── Booking Holder ────────────────────────────────────────────────────────
