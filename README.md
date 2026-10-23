@@ -252,6 +252,8 @@ Los conteos pueden cambiar al editar el maestro.
 |---|---|
 | `TC` | Identificador exacto, por ejemplo `NBFOW-01` o `NBFRT-12`. |
 | `POS` | Punto de venta. Mapeos actuales: `COP`/`CO` a `CO`, `US`, `BR`, `ES`, `UK`/`GB` a `UK`, `AR`, `MX`. |
+| `Origen` | Código IATA de tres letras del aeropuerto de salida, por ejemplo `BOG`. Obligatorio y diferente de `Destino`. |
+| `Destino` | Código IATA de tres letras del aeropuerto de llegada, por ejemplo `MAD`. Obligatorio y diferente de `Origen`. |
 | `salida` | Fecha futura de ida en formato ISO, por ejemplo `2026-11-01`. |
 | `regreso` | Fecha de vuelta para RT; para OW usar `NA` o vacío. |
 | `Viaje` | `OW` o `RT`. Debe coincidir con la hoja; `RT` activa las acciones del segundo tramo. |
@@ -282,7 +284,11 @@ Las cantidades, edades e itinerarios deben cumplir las reglas del negocio. El fr
 ### 5.3 Comportamientos relevantes de los datos NBF
 
 - La suite usa `NBF_OW_URL` o `NBF_RT_URL` según la hoja.
-- Se modifican `fi`, `fr`, `na`, `nj`, `nn`, `ni` y `Pais` en la URL. Origen y destino permanecen en la URL base.
+- Se modifican `cco` (Origen), `ccd` (Destino), `fi`, `fr`, `na`, `nj`, `nn`, `ni` y `Pais` en la URL. Los aeropuertos del Excel reemplazan los de la URL base.
+- `Origen` y `Destino` están al final de ambas hojas NBF. Se normalizan quitando espacios exteriores y pasando a mayúsculas; valores vacíos, formatos distintos de tres letras o aeropuertos iguales producen un error explícito.
+- El maestro se pobló con origen `BOG` y una distribución aleatoria de `ACA` (Acapulco), `IAD` (Washington), `OPO` (Porto), `BCN` (Barcelona), `MAD` (Madrid), `JFK` (New York), `DEN` (Denver), `AEP` (Buenos Aires) y `MEX` (Mexico City). Cada destino aparece al menos una vez por hoja. La asignación queda guardada: no cambia aleatoriamente en cada ejecución y puede editarse por caso.
+- En RT, estos campos describen la ida; la vuelta corresponde al itinerario inverso. No representan un viaje multidestino.
+- Un código de tres letras no garantiza que QA comercialice la ruta, tenga inventario o Business para la fecha y pasajeros elegidos. Verificar disponibilidad antes de ejecutar; no se sustituye silenciosamente el destino solicitado por `CLO`.
 - Las fechas de búsqueda se convierten a `DDMMM`, sin año. Revisar cómo interpreta QA el cambio de año.
 - Una fecha de regreso válida establece `fr`; una inválida lo elimina. No cargar regreso válido en una fila OW.
 - La cabina se selecciona en la UI; `selectedCabin` de la URL no se sobrescribe.
@@ -630,7 +636,7 @@ Estas observaciones documentan el estado actual; esta guía no cambia el comport
 | `Cannot find module '../../src/fixtures/test.fixture'` | Se cargó SSCI. Ejecutar la especificación NBF explícitamente; SSCI requiere implementación aparte. |
 | `TS5103` sobre `ignoreDeprecations` | Ver la sección TypeScript; es una incompatibilidad de configuración conocida. |
 | `Access Denied`, error de conexión o modal de error QA | Comprobar acceso manual, VPN, permisos y disponibilidad del ambiente; no intentar evadir controles. |
-| No hay vuelos para la fecha | Revisar fecha futura, interpretación del año y ruta definida en la URL base. |
+| No hay vuelos para la fecha | Revisar fecha futura, interpretación del año y columnas `Origen`/`Destino` del Excel, además de disponibilidad comercial de la ruta. |
 | Ningún vuelo ofrece Economy y Business | La búsqueda requiere ambas cabinas; revisar inventario y combinación de pasajeros del caso. No se selecciona un vuelo arbitrario como alternativa. |
 | No aparece el precio del bundle | Revisar que el panel se abra, que QA conserve sus selectores y que exista la tarifa solicitada para ese vuelo. |
 | Fecha de nacimiento o tipo de pasajero rechazado | Revisar fechas del Excel y años fijos de pasajeros adicionales. |

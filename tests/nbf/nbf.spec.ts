@@ -66,6 +66,8 @@ const POS_TO_COUNTRY: Record<string, string> = {
  * ejecucion refleje exactamente lo que el Excel define.
  *
  * Parametros reemplazados:
+ *   cco → aeropuerto de origen (IATA)
+ *   ccd → aeropuerto de destino (IATA)
  *   fi  → fecha de salida (DDMMM)
  *   fr  → fecha de regreso (DDMMM) — solo RT; se elimina para OW
  *   na  → adultos
@@ -73,11 +75,22 @@ const POS_TO_COUNTRY: Record<string, string> = {
  *   nn  → children
  *   ni  → infants
  *   Pais         → pais del POS
- *   selectedCabin → cabina segun bundle
+ * La cabina se selecciona en la UI; selectedCabin no se modifica.
  */
 function buildNbfUrl(baseUrl: string, tc: NbfCaseData): string {
+  const origin = String(tc.Origen ?? '').trim().toUpperCase();
+  const destination = String(tc.Destino ?? '').trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(origin) || !/^[A-Z]{3}$/.test(destination)) {
+    throw new Error(`[${tc.TC}] Origen y Destino deben contener codigos IATA de tres letras en el Excel.`);
+  }
+  if (origin === destination) {
+    throw new Error(`[${tc.TC}] Origen y Destino deben ser diferentes (${origin}).`);
+  }
+
   try {
     const url = new URL(baseUrl);
+    url.searchParams.set('cco', origin);
+    url.searchParams.set('ccd', destination);
 
     // ── Fecha de salida ────────────────────────────────────────────────────
     const salidaNbf = toNbfDate(String(tc.salida));
@@ -108,7 +121,7 @@ function buildNbfUrl(baseUrl: string, tc: NbfCaseData): string {
 
     return url.toString();
   } catch {
-    return baseUrl; // fallback si la URL base no es parseable
+    throw new Error(`[${tc.TC}] No se pudo construir la URL NBF. Revisa la URL base y los datos del Excel.`);
   }
 }
 
@@ -128,7 +141,7 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   // 1/N: Seleccion de vuelo y bundle -----------------------------------------
   // La URL se construye dinamicamente con los pasajeros del caso (na/nj/nn/ni)
   const nbfUrl = buildNbfUrl(url, tc);
-  await test.step('1 -- Vuelo + Bundle', async () => {
+  await test.step(`1 -- Vuelo + Bundle | ${tc.Origen} -> ${tc.Destino}`, async () => {
     await page.goto(nbfUrl);
     await availPage.selectFirstFlight();
     await availPage.selectBundle(String(tc.Bundle), isRoundTrip);

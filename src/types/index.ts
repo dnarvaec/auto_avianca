@@ -21,6 +21,8 @@ export type TestDataRow = Record<string, CellScalar>;
 export interface NbfCaseData extends TestDataRow {
   TC: string;
   POS: string;
+  Origen: string;
+  Destino: string;
   salida: string;
   regreso: string;
   /** 'RT' | 'OW' — determina qué URL usar */
