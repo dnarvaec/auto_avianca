@@ -143,7 +143,7 @@ async function runNbfCase(page: Page, tc: NbfCaseData, url: string): Promise<voi
   const nbfUrl = buildNbfUrl(url, tc);
   await test.step(`1 -- Vuelo + Bundle | ${tc.Origen} -> ${tc.Destino}`, async () => {
     await page.goto(nbfUrl);
-    await availPage.selectFirstFlight();
+    await availPage.selectFirstFlight(String(tc.Bundle));
     await availPage.selectBundle(String(tc.Bundle), isRoundTrip);
     await tripSummary.waitForPage();
     await tripSummary.continue();

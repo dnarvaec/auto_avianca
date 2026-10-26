@@ -11,6 +11,16 @@ const CABIN_TAB: Record<string, string> = {
   Bus: '[data-testid="business-tab"]',
 };
 
+// Según la ruta, la tarifa básica de Economy se publica como BASIC o LIGHT
+const ECO_FARE_ALIASES: Record<string, string[]> = {
+  BASIC: ['BASIC', 'LIGHT'],
+};
+
+function ecoPriceTestIds(bundleName: string): string[] {
+  const upper = bundleName.toUpperCase();
+  return (ECO_FARE_ALIASES[upper] ?? [upper]).map(name => `ff-price-container-${name}`);
+}
+
 export class AvailabilityPage extends BasePage {
   // ─── Locators ──────────────────────────────────────────────────────────────
   private readonly cookieAcceptBtn: Locator;
@@ -57,16 +67,18 @@ export class AvailabilityPage extends BasePage {
   // ─── Acciones ──────────────────────────────────────────────────────────────
 
   /**
-   * Selecciona el primer vuelo que ofrece Economy y Business habilitadas.
+   * Selecciona el primer vuelo que ofrece la cabina requerida por el bundle:
+   * "Eco ..." → basta con la tarifa Economy; "Bus ..." → exige Business habilitada.
+   * Sin bundle se exige Economy y Business (comportamiento anterior).
    */
-  async selectFirstFlight(): Promise<void> {
+  async selectFirstFlight(bundle?: string): Promise<void> {
     // 1. Descartar cookies y esperar a que la cortina negra desaparezca totalmente
     await this.dismissCookies();
     // 2. Esperar que los vuelos terminen de renderizarse en el DOM
     await this.waitForFlights();
     await this.dismissCookies();
 
-    await this.selectFlightWithBothCabins(this.flightCards, 'ida');
+    await this.selectFlightForBundle(this.flightCards, 'ida', bundle);
   }
 
   /**
@@ -81,7 +93,7 @@ export class AvailabilityPage extends BasePage {
     // ── 2. Si es Round Trip, seleccionar vuelo y bundle de regreso ─────────
     if (isRoundTrip) {
       console.log('ℹ️ [Availability] Round Trip detectado: Procediendo a seleccionar vuelo y bundle de regreso...');
-      await this.selectReturnFlight();
+      await this.selectReturnFlight(bundle);
       await this.chooseBundlePrice(bundle);
       await this.handleCroModal(bundle);
     }
@@ -92,8 +104,19 @@ export class AvailabilityPage extends BasePage {
 
   // ─── Helpers Privados para Round Trip y Bundles ────────────────────────────
 
-  private async selectFlightWithBothCabins(cards: Locator, segment: string): Promise<void> {
+  private async selectFlightForBundle(cards: Locator, segment: string, bundle?: string): Promise<void> {
     this.selectedFlightPanel = undefined;
+    const [cabinKey, bundleName] = (bundle ?? '').trim().split(/\s+/);
+    const requirement: 'eco' | 'bus' | 'both' =
+      cabinKey === 'Bus' ? 'bus' : cabinKey === 'Eco' && bundleName ? 'eco' : 'both';
+    const ecoPriceSelector = ecoPriceTestIds(bundleName ?? '')
+      .map(id => `[data-testid="${id}"]`).join(', ');
+    const requirementLabel = {
+      eco: `la tarifa Economy ${bundleName ?? ''}`.trim(),
+      bus: 'Business habilitada',
+      both: 'Economy y Business habilitadas',
+    }[requirement];
+
     const visibleCards = cards.and(this.page.locator(':visible'));
     await expect(visibleCards.first()).toBeVisible({ timeout: 35000 });
     await expect(this.page.locator('nbf-skeleton-block:visible')).toHaveCount(0, { timeout: 35000 });
@@ -122,18 +145,27 @@ export class AvailabilityPage extends BasePage {
       const business = panel.locator(CABIN_TAB.Bus)
         .and(this.page.locator(':visible')).first();
 
-      if (
-        await economy.isVisible() && await economy.isEnabled() &&
-        await business.isVisible() && await business.isEnabled()
-      ) {
+      const businessOk = await business.isVisible() && await business.isEnabled();
+      let matches: boolean;
+      if (requirement === 'bus') {
+        matches = businessOk;
+      } else if (requirement === 'eco') {
+        // Vuelos solo-Economy no muestran pestañas: basta con que exista el precio del bundle
+        const ecoPrice = panel.locator(ecoPriceSelector).and(this.page.locator(':visible')).first();
+        matches = await ecoPrice.isVisible() && await ecoPrice.isEnabled();
+      } else {
+        matches = await economy.isVisible() && await economy.isEnabled() && businessOk;
+      }
+
+      if (matches) {
         this.selectedFlightPanel = panel;
-        console.log(`[Availability] Vuelo de ${segment} ${index + 1}/${count}: Economy y Business disponibles.`);
+        console.log(`[Availability] Vuelo de ${segment} ${index + 1}/${count}: ofrece ${requirementLabel}.`);
         return;
       }
     }
 
     throw new Error(
-      `[Availability] Ninguno de los ${count} vuelos de ${segment} ofrece Economy y Business habilitadas.`
+      `[Availability] Ninguno de los ${count} vuelos de ${segment} ofrece ${requirementLabel}.`
     );
   }
 
@@ -143,7 +175,7 @@ export class AvailabilityPage extends BasePage {
   private async chooseBundlePrice(bundle: string): Promise<void> {
     const panel = this.selectedFlightPanel;
     if (!panel) {
-      throw new Error('[Availability] Debe seleccionar un vuelo con ambas cabinas antes de elegir el bundle.');
+      throw new Error('[Availability] Debe seleccionar un vuelo antes de elegir el bundle.');
     }
     const [cabinKey, bundleName] = bundle.split(' ') as [string, string];
     const bundleUpper = bundleName.toUpperCase() as 'BASIC' | 'CLASSIC' | 'FLEX';
@@ -166,12 +198,12 @@ export class AvailabilityPage extends BasePage {
     }
 
     // ── Clic en el botón de precio del Bundle ──────────────────────────────
-    const priceTestId = cabinKey === 'Bus'
-      ? `ff-price-container-BC ${bundleUpper}`
-      : `ff-price-container-${bundleUpper}`;
+    const priceSelector = cabinKey === 'Bus'
+      ? `[data-testid="ff-price-container-BC ${bundleUpper}"]`
+      : ecoPriceTestIds(bundleUpper).map(id => `[data-testid="${id}"]`).join(', ');
 
     // Buscamos el botón de precio visible
-    const priceBtn = panel.getByTestId(priceTestId).and(this.page.locator(':visible')).first();
+    const priceBtn = panel.locator(priceSelector).and(this.page.locator(':visible')).first();
 
     await expect(priceBtn).toBeVisible({ timeout: 15000 });
     await this.smoothScroll(priceBtn, 400);
@@ -206,9 +238,9 @@ export class AvailabilityPage extends BasePage {
   }
 
   /**
-   * Selecciona un vuelo de regreso con Economy y Business habilitadas.
+   * Selecciona un vuelo de regreso que ofrezca la cabina requerida por el bundle.
    */
-  private async selectReturnFlight(): Promise<void> {
+  private async selectReturnFlight(bundle: string): Promise<void> {
     // 1. Esperar que la lista de vuelos de regreso esté disponible y sin loaders
     await this.page.locator('.flight-skeleton, .spinner, ngx-spinner, #loader').first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => { });
     await this.page.waitForTimeout(800);
@@ -222,6 +254,6 @@ export class AvailabilityPage extends BasePage {
       ? inboundContainer.locator('button.flight-container')
       : this.page.locator('button.flight-container:visible:not(.selected)');
 
-    await this.selectFlightWithBothCabins(returnCards, 'regreso');
+    await this.selectFlightForBundle(returnCards, 'regreso', bundle);
   }
 }

@@ -292,7 +292,7 @@ Las cantidades, edades e itinerarios deben cumplir las reglas del negocio. El fr
 - Las fechas de búsqueda se convierten a `DDMMM`, sin año. Revisar cómo interpreta QA el cambio de año.
 - Una fecha de regreso válida establece `fr`; una inválida lo elimina. No cargar regreso válido en una fila OW.
 - La cabina se selecciona en la UI; `selectedCabin` de la URL no se sobrescribe.
-- La selección actual exige **Economy y Business habilitadas en el mismo vuelo**, incluso para casos Economy. Esto aplica a ida y regreso.
+- La selección del vuelo depende del bundle: los casos `Eco ...` aceptan el primer vuelo que ofrezca esa tarifa Economy (aunque no tenga Business) y los casos `Bus ...` exigen **Business habilitada**. Esto aplica a ida y regreso. `Eco Basic` acepta la tarifa publicada como `BASIC` o `LIGHT`, ya que el nombre cambia según la ruta.
 - Los pasajeros adicionales se generan como `Test Passenger`, nacionalidad Colombia, con años de nacimiento fijos: adulto `1990`, joven `2013`, niño `2020`, infante `2025`. Revisar su validez frente a la fecha del viaje.
 - LifeMiles utiliza actualmente el número fijo de prueba `123456`.
 - Los nombres y apellidos se limpian de caracteres no admitidos. Un apellido sin letras termina usando `Perez`: por ejemplo, `Test 21` produce apellido `Perez`.
@@ -506,7 +506,7 @@ Los directorios `node_modules`, `playwright-report` y `test-results` se generan 
 | [index.ts](./src/types/index.ts) | Tipos de filas por flujo. |
 | [BasePage.ts](./src/pages/BasePage.ts) | Navegación, scroll, acciones y aserciones comunes. |
 | [nbf.spec.ts](./tests/nbf/nbf.spec.ts) | Carga de casos, filtro, construcción de URL, pasos, manejo agregado de fallos y anotaciones. |
-| [AvailabilityPage.ts](./src/pages/nbf/AvailabilityPage.ts) | Selección de vuelos con ambas cabinas, bundle y modal de upsell; incluye regreso RT. |
+| [AvailabilityPage.ts](./src/pages/nbf/AvailabilityPage.ts) | Selección del vuelo según la cabina del bundle, bundle y modal de upsell; incluye regreso RT. |
 | [TripSummaryPage.ts](./src/pages/nbf/TripSummaryPage.ts) | Resumen y continuación como invitado cuando aplica. |
 | [TravelersPage.ts](./src/pages/nbf/TravelersPage.ts) | Pasajeros, titular, contacto y privacidad; devuelve el apellido del primer adulto. |
 | [AncillariesPage.ts](./src/pages/nbf/AncillariesPage.ts) | Decisión de equipaje y servicios opcionales; transición al pago. |
@@ -637,7 +637,7 @@ Estas observaciones documentan el estado actual; esta guía no cambia el comport
 | `TS5103` sobre `ignoreDeprecations` | Ver la sección TypeScript; es una incompatibilidad de configuración conocida. |
 | `Access Denied`, error de conexión o modal de error QA | Comprobar acceso manual, VPN, permisos y disponibilidad del ambiente; no intentar evadir controles. |
 | No hay vuelos para la fecha | Revisar fecha futura, interpretación del año y columnas `Origen`/`Destino` del Excel, además de disponibilidad comercial de la ruta. |
-| Ningún vuelo ofrece Economy y Business | La búsqueda requiere ambas cabinas; revisar inventario y combinación de pasajeros del caso. No se selecciona un vuelo arbitrario como alternativa. |
+| Ningún vuelo ofrece la tarifa Economy / Business habilitada | Ningún vuelo de la ruta ofrece la cabina o tarifa del bundle; revisar ruta (`Origen`/`Destino`), fecha, inventario y combinación de pasajeros del caso. No se selecciona un vuelo arbitrario como alternativa. |
 | No aparece el precio del bundle | Revisar que el panel se abra, que QA conserve sus selectores y que exista la tarifa solicitada para ese vuelo. |
 | Fecha de nacimiento o tipo de pasajero rechazado | Revisar fechas del Excel y años fijos de pasajeros adicionales. |
 | Se reintenta dos veces sin esperarlo | Revisar `CI`; usar `--retries=0` para una ejecución controlada. |
