@@ -17,6 +17,7 @@ export class ConfirmationPage extends BasePage {
     private readonly contactCard: Locator;
     private readonly collapseServicesBtn: Locator;
     private readonly collapseTaxesBtn: Locator;
+    private readonly cookieBanner: Locator | undefined;
 
     constructor(page: Page) {
         super(page);
