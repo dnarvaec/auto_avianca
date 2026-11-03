@@ -9,6 +9,7 @@ export class ConfirmationPage extends BasePage {
     static readonly URL_PATTERN: RegExp = /.*(\/confirmation|success)/i;
 
     // ─── Locators ──────────────────────────────────────────────────────────────
+    private readonly cookieBanner: Locator | undefined;
     private readonly cookieAcceptBtn: Locator;
     private readonly bookingCodeLocator: Locator;
     private readonly confirmationBanner: Locator;
