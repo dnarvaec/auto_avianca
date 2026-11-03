@@ -1,0 +1,257 @@
+import { type Page, type Locator, expect } from '@playwright/test';
+import { BasePage } from '../BasePage';
+import type { PaymentConfig } from '../../config/environment';
+
+/**
+ * Page Object — Paso 4: "Pay and confirm" (Abra Checkout)
+ * URL: https://abracheckoutqa.avtest.ink/EN/nbf/pay?sessionID=...
+ */
+export class PaymentPage extends BasePage {
+  static readonly URL_PATTERN: RegExp = /.*(abracheckout|sdkqa|\/pay|\/checkout|\/payment)/i;
+
+  // ─── Locators — Cookies ───────────────────────────────────────────────────
+  private readonly cookieAcceptBtn: Locator;
+
+  // ─── Locators — Método de Pago ────────────────────────────────────────────
+  private readonly cardItemContainer: Locator;
+  private readonly cardMethodRadio: Locator;
+
+  // ─── Locators — Datos de la Tarjeta ───────────────────────────────────────
+  private readonly holderNameInput: Locator;
+  private readonly holderLastnameInput: Locator;
+  private readonly cardNumberInput: Locator;
+  private readonly expiryMonthTrigger: Locator;
+  private readonly expiryYearTrigger: Locator;
+  private readonly cvvInput: Locator;
+
+  // ─── Locators — Datos de Contacto y Facturación ───────────────────────────
+  private readonly emailInput: Locator;
+  private readonly areaCodeTrigger: Locator;
+  private readonly phoneInput: Locator;
+  private readonly countryTrigger: Locator;
+  private readonly cityInput: Locator;
+  private readonly addressInput: Locator;
+
+  // ─── Locators — T&C y Botón Pagar ─────────────────────────────────────────
+  private readonly termsCheckbox: Locator;
+  private readonly payBtn: Locator;
+
+  constructor(page: Page) {
+    super(page);
+
+    // Cookies
+    this.cookieAcceptBtn = page.locator(
+      '#onetrust-accept-btn-handler, #onetrust-banner-sdk button:has-text("Aceptar"), button:has-text("Aceptar"), button:has-text("Accept"), button:has-text("Allow all")'
+    );
+
+    // Método de pago: Credit or debit card
+    this.cardItemContainer = page.locator('#card-item, .payment-method:has(input[value="card"])');
+    this.cardMethodRadio = page.locator('input[name="paymentMethod"][value="card"], #card-item input.radio-button');
+
+    // Datos principales (exactos según HTML)
+    this.holderNameInput = page.locator('input#firstnameTitular');
+    this.holderLastnameInput = page.locator('input#lastnameTitular');
+    this.cardNumberInput = page.locator('input#cardNumber');
+
+    // Contenedores interactivos del select
+    this.expiryMonthTrigger = page.locator('div.form-field-select[data-control="expiryMonth"]');
+    this.expiryYearTrigger = page.locator('div.form-field-select[data-control="expiryYear"]');
+    this.cvvInput = page.locator('input#securityDigits');
+
+    // Datos de contacto
+    this.emailInput = page.locator('input#emailTc, input#emailTitular');
+    this.areaCodeTrigger = page.locator('[data-control="areaCodeTc"], input#areaCodeTc, mat-select#areaCode');
+    this.phoneInput = page.locator('input#phoneTc, input#cellTitular');
+    this.countryTrigger = page.locator('[data-control="country"], input#country, mat-select#country');
+    this.cityInput = page.locator('input#city');
+    this.addressInput = page.locator('input#addressTc, input#address');
+
+    // T&C y Botón Pay
+    this.termsCheckbox = page.locator('input#global-acceptTerms, input#policyCheck');
+    this.payBtn = page.locator('button#global-submit, button#btnPay');
+  }
+
+  // ─── Cookies ──────────────────────────────────────────────────────────────
+
+  async dismissCookies(): Promise<void> {
+    const acceptBtn = this.cookieAcceptBtn.first();
+    if (await acceptBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
+      await acceptBtn.click({ force: true }).catch(() => { });
+      await this.page.waitForTimeout(300);
+    }
+
+    await this.page.evaluate(() => {
+      document.querySelectorAll('.onetrust-pc-dark-filter, #onetrust-banner-sdk, #onetrust-consent-sdk').forEach(el => el.remove());
+    }).catch(() => { });
+  }
+
+  // ─── Navegación ────────────────────────────────────────────────────────────
+
+  async waitForPage(): Promise<void> {
+    await this.page.waitForURL(PaymentPage.URL_PATTERN, {
+      timeout: 45000,
+      waitUntil: 'domcontentloaded',
+    });
+
+    await this.dismissCookies();
+    await expect(this.cardItemContainer.first()).toBeVisible({ timeout: 30000 });
+  }
+
+  // ─── Acciones ──────────────────────────────────────────────────────────────
+
+  async expandCreditCard(): Promise<void> {
+    await this.dismissCookies();
+
+    const cardLabel = this.cardItemContainer.locator('.payment-method__header, label').first();
+    await this.smoothScroll(cardLabel, 350);
+
+    await cardLabel.click({ force: true });
+    await this.cardMethodRadio.check({ force: true }).catch(() => { });
+
+    await expect(this.cardNumberInput).toBeVisible({ timeout: 10000 });
+  }
+
+  async fillPaymentForm(payment: PaymentConfig): Promise<void> {
+    await this.expandCreditCard();
+
+    // ── 1. Nombre y Apellido del Titular ────────────────────────────────────
+    await this.smoothScroll(this.holderNameInput, 250);
+    await this.holderNameInput.fill(payment.holderName);
+    await this.holderLastnameInput.fill(payment.holderLastname);
+
+    // ── 2. Número de Tarjeta (Uso de pressSequentially para activar formateador JS)
+    await this.smoothScroll(this.cardNumberInput, 250);
+    await this.cardNumberInput.click();
+    await this.cardNumberInput.clear().catch(() => { });
+    await this.cardNumberInput.pressSequentially(payment.cardNumber.replace(/\s+/g, ''), { delay: 35 });
+    await this.cardNumberInput.blur();
+
+    // ── 3. Fecha de Expiración (Mes y Año) ──────────────────────────────────
+    const { month, year } = this.parseExpiry(payment.expiryDate);
+    const mmPadded = month.padStart(2, '0'); // Ej: "01"
+    const yyPadded = year.length === 4 ? year.slice(-2) : year.padStart(2, '0'); // Ej: "28"
+
+    // ── Seleccionar Mes con reintento resiliente
+    await this.selectDropdownOption(this.expiryMonthTrigger, '#expiryMonth-list-panel', mmPadded);
+
+    // ── Seleccionar Año con reintento resiliente
+    await this.selectDropdownOption(this.expiryYearTrigger, '#expiryYear-list-panel', yyPadded);
+
+    // ── 4. CVV (Limpieza y escritura controlada) ───────────────────────────
+    await this.smoothScroll(this.cvvInput, 200);
+    await this.cvvInput.click();
+    await this.cvvInput.clear().catch(() => { });
+    await this.cvvInput.pressSequentially(payment.cvv, { delay: 35 });
+    await this.cvvInput.blur();
+
+    // ── 5. Datos de Contacto y Facturación ──────────────────────────────────
+    await expect(this.emailInput).toBeVisible({ timeout: 10000 });
+    await this.smoothScroll(this.emailInput, 250);
+    await this.emailInput.fill(payment.email);
+
+    // Código de área
+    if (await this.areaCodeTrigger.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+      await this.smoothScroll(this.areaCodeTrigger.first(), 200);
+      await this.areaCodeTrigger.first().click({ force: true });
+      await this.page.waitForTimeout(300);
+      const areaBtn = this.page.locator('#areaCodeTc-list-panel button').first();
+      if (await areaBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await areaBtn.click({ force: true });
+      }
+    }
+
+    await this.smoothScroll(this.phoneInput, 200);
+    await this.phoneInput.fill(payment.phone);
+
+    // País
+    if (await this.countryTrigger.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+      await this.smoothScroll(this.countryTrigger.first(), 200);
+      await this.countryTrigger.first().click({ force: true });
+      await this.page.waitForTimeout(300);
+      const countryBtn = this.page.locator('#country-list-panel button').filter({ hasText: new RegExp(payment.country, 'i') }).first();
+      if (await countryBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await countryBtn.click({ force: true });
+      } else {
+        await this.page.locator('#country-list-panel button').first().click({ force: true }).catch(() => { });
+      }
+    }
+
+    if (await this.cityInput.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await this.smoothScroll(this.cityInput, 200);
+      await this.cityInput.fill(payment.city);
+    }
+
+    await this.smoothScroll(this.addressInput, 200);
+    await this.addressInput.fill(payment.address);
+
+    // ── 6. Aceptar Términos y Condiciones ───────────────────────────────────
+    const termsInput = this.termsCheckbox.first();
+    if (await termsInput.isVisible({ timeout: 4000 }).catch(() => false)) {
+      await this.smoothScroll(termsInput, 300);
+      await termsInput.evaluate((el: HTMLInputElement) => {
+        if (!el.checked) {
+          el.click();
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+      await expect(termsInput).toBeChecked({ timeout: 5000 });
+    }
+  }
+
+  async submitPayment(): Promise<void> {
+    const submitBtn = this.payBtn.first();
+    await expect(submitBtn).toBeVisible({ timeout: 15000 });
+    await this.smoothScroll(submitBtn, 400);
+    await submitBtn.click({ force: true });
+  }
+
+  // ─── Helpers privados ─────────────────────────────────────────────────────
+
+  /**
+   * Helper resiliente para abrir y seleccionar opciones en los desplegables de Abra Checkout
+   */
+  private async selectDropdownOption(trigger: Locator, panelSelector: string, dataValue: string): Promise<void> {
+    const triggerEl = trigger.first();
+    await expect(triggerEl).toBeVisible({ timeout: 10000 });
+    await this.smoothScroll(triggerEl, 250);
+
+    const panel = this.page.locator(panelSelector);
+    const option = this.page.locator(`${panelSelector} button[data-value="${dataValue}"], ${panelSelector} [role="option"][data-value="${dataValue}"]`).first();
+
+    await expect(async () => {
+      // 1. Si el panel está cerrado, hacer clic en el trigger para abrirlo
+      if (!(await panel.isVisible())) {
+        await triggerEl.click({ force: true });
+        await this.page.waitForTimeout(300);
+      }
+
+      // 2. Si el panel ya abrió, hacer scroll y clic en la opción
+      if (await panel.isVisible()) {
+        await option.scrollIntoViewIfNeeded().catch(() => { });
+        await option.click({ force: true });
+      } else {
+        // 3. Fallback: disparar evento directo al botón
+        await option.evaluate((btn: HTMLElement) => {
+          btn.click();
+          btn.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      }
+    }).toPass({
+      intervals: [400, 800],
+      timeout: 8000,
+    });
+
+    await this.page.waitForTimeout(300);
+  }
+
+  private parseExpiry(expiry: string): { month: string; year: string } {
+    const [mm, yy] = expiry.split('/');
+    const month = (mm ?? '01').trim();
+    let year = (yy ?? '28').trim();
+    if (year.length === 4) {
+      year = year.slice(-2);
+    }
+    return { month, year };
+  }
+}
